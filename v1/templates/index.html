@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wildlife Monitoring System</title>
+</head>
+<body>
+    <h1>Wildlife Monitoring System</h1>
+    <div>
+        <h2>Report Wildlife Sighting</h2>
+        <form id="sightingForm">
+            <input type="text" id="species" placeholder="Species" required><br>
+            <input type="text" id="location" placeholder="Location" required><br>
+            <input type="number" id="count" placeholder="Number of animals" required><br>
+            <button type="submit">Submit Sighting</button>
+        </form>
+    </div>
+    <div>
+        <h2>Recent Sightings</h2>
+        <div id="sightingsList"></div>
+    </div>
+
+    <script>
+        document.getElementById('sightingForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const data = {
+                species: document.getElementById('species').value,
+                location: document.getElementById('location').value,
+                count: document.getElementById('count').value
+            };
+            
+            await fetch('/api/sightings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            loadSightings();
+        };
+
+        async function loadSightings() {
+            const response = await fetch('/api/sightings');
+            const sightings = await response.json();
+            const list = document.getElementById('sightingsList');
+            list.innerHTML = sightings.map(s => 
+                `<div>
+                    <p>${s.species} - ${s.location} - Count: ${s.count}</p>
+                </div>`
+            ).join('');
+        }
+
+        loadSightings();
+    </script>
+</body>
+</html>
