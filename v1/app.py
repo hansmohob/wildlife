@@ -10,7 +10,6 @@ app = Flask(__name__)
 
 # Initialize AWS S3 client
 s3 = boto3.client('s3')
-BUCKET_NAME = f"{os.getenv('PREFIX_CODE')}-wildlife-monitoring-{os.getenv('AWS_ACCOUNT_ID')}"
 
 # Initialize MongoDB client
 client = MongoClient('mongodb://localhost:27017/')
