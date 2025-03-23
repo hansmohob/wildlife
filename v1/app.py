@@ -10,6 +10,7 @@ app = Flask(__name__)
 
 # Initialize AWS S3 client
 s3 = boto3.client('s3')
+BUCKET_NAME = os.getenv('BUCKET_NAME')  
 
 # Initialize MongoDB client
 client = MongoClient('mongodb://localhost:27017/')
@@ -22,31 +23,43 @@ def index():
 @app.route('/api/sightings', methods=['POST'])
 def report_sighting():
     try:
-        data = request.form.to_dict()  # Changed from request.json
+        data = request.form.to_dict()
         data['timestamp'] = datetime.utcnow()
         
         # Handle image upload if present
         if 'image' in request.files:
             file = request.files['image']
+            print("Got file:", file.filename)
             if file.filename:
                 # Create unique filename with timestamp
                 timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
                 filename = f"sightings/{timestamp}-{secure_filename(file.filename)}"
+                print("Attempting S3 upload to bucket:", BUCKET_NAME)
+                print("With filename:", filename)
                 
-                # Upload to S3
-                s3.upload_fileobj(
-                    file,
-                    BUCKET_NAME,
-                    filename,
-                    ExtraArgs={'ContentType': file.content_type}
-                )
-                data['image_url'] = filename
+                try:
+                    # Upload to S3
+                    s3.upload_fileobj(
+                           file,
+                        BUCKET_NAME,
+                        filename,
+                        ExtraArgs={'ContentType': file.content_type}
+                    )
+                    print("S3 upload successful")
+                    data['image_url'] = filename
+                except Exception as s3_error:
+                    print("S3 upload failed with error:", str(s3_error))
+                    print("Error type:", type(s3_error))
+                    import traceback
+                    print("Traceback:", traceback.format_exc())
+                    raise
         
         # Store in MongoDB
         db.sightings.insert_one(data)
         
         return jsonify({"message": "Sighting reported successfully"}), 200
     except Exception as e:
+        print("Final error:", str(e))
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/sightings', methods=['GET'])
