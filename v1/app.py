@@ -5,8 +5,13 @@ from botocore.exceptions import ClientError
 import os
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
+import uuid
+from flask import send_file, jsonify
+from io import BytesIO
+from botocore.exceptions import ClientError
 
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/wildlife'
 
 # Initialize AWS S3 client
 s3 = boto3.client('s3')
@@ -29,11 +34,12 @@ def report_sighting():
         # Handle image upload if present
         if 'image' in request.files:
             file = request.files['image']
-            print("Got file:", file.filename)
             if file.filename:
-                # Create unique filename with timestamp
-                timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-                filename = f"sightings/{timestamp}-{secure_filename(file.filename)}"
+                # Get file extension
+                file_extension = os.path.splitext(file.filename)[1]
+                # Create unique filename with UUID
+                unique_filename = f"{uuid.uuid4()}{file_extension}"
+                filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
                 print("Attempting S3 upload to bucket:", BUCKET_NAME)
                 print("With filename:", filename)
                 
@@ -73,15 +79,43 @@ def get_sightings():
 @app.route('/api/images/<path:image_key>')
 def get_image(image_key):
     try:
-        # Generate a presigned URL for the S3 object
-        url = s3.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': BUCKET_NAME, 'Key': image_key},
-            ExpiresIn=3600
-        )
-        return redirect(url)
-    except ClientError as e:
-        return jsonify({"error": str(e)}), 500
+        # Basic validation of image key
+        if not image_key or '..' in image_key:  # Prevent path traversal
+            return jsonify({"error": "Invalid image key"}), 400
+
+        # Check file extension
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif'}
+        if not any(image_key.lower().endswith(ext) for ext in allowed_extensions):
+            return jsonify({"error": "Invalid file type"}), 400
+
+        try:
+            # Get the image from S3
+            response = s3.get_object(Bucket=BUCKET_NAME, Key=image_key)
+            image_data = response['Body'].read()
+            
+            # Create a BytesIO object
+            image_stream = BytesIO(image_data)
+            
+            # Get content type or default to jpeg
+            content_type = response.get('ContentType', 'image/jpeg')
+            
+            return send_file(
+                image_stream,
+                mimetype=content_type,
+                as_attachment=False
+            )
+
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchKey':
+                return jsonify({"error": "Image not found"}), 404
+            else:
+                print(f"S3 error: {str(e)}")  # Log the error
+                return jsonify({"error": "Failed to retrieve image"}), 500
+
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")  # Log the error
+        return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

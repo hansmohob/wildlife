@@ -3,6 +3,7 @@
 <head>
     <title>Wildlife Monitoring System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar navbar-dark bg-dark">
@@ -43,19 +44,37 @@
             </div>
             <div class="col-md-8">
                 <div class="card">
-                    <div class="card-header">
+                    <div iv class="card-header">
                         Recent Sightings
                     </div>
                     <div class="card-body">
-                        <div id="sightingsList"></div>
+                        <table id="sightingsTable" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Image</e</th>
+                                    <th>Species</th>
+                                    <th>Location</th>
+                                    <th>Count</th>
+                                    <th>Date/Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sightingsList">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    
     <script>
+        let dataTable;
+
         document.getElementById('sightingForm').onsubmit = async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -80,27 +99,44 @@
 
         async function loadSightings() {
             try {
-                const response = await fetch('/api/sightings');
+                const response = await fetch('/wildlife/api/sightings');
                 const sightings = await response.json();
-                const list = document.getElementById('sightingsList');
-                list.innerHTML = sightings.map(s => `
-                    <div class="card mb-2">
-                        <div class="card-body">
-                            <h5 class="card-title">${s.species}</h5>
-                            ${s.image_url ? `<img src="/api/images/${s.image_url}" class="img-fluid mb-2" style="max-height: 200px;">` : ''}
-                            <p class="card-text">
-                                <strong>Location:</strong> ${s.location}<br>
-                                <strong>Count:</strong> ${s.count}<br>
-                                <strong>Time:</strong> ${new Date(s.timestamp).toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
+                
+                // Destroy existing DataTable if it exists
+                if (dataTable) {
+                    dataTable.destroy();
+                }
+
+                // Update table content
+                const tbody = document.getElementById('sightingsList');
+                tbody.innerHTML = sightings.map(s => `
+                    <tr>
+                        <td>
+                            ${s.image_url ? 
+                                `<img src="/wildlife/api/images/${s.image_url}"
+                                     class="img-thumbnail" 
+                                     style="max-height: 50px;">` : 
+                                'No image'}
+                        </td>
+                        <td>${s.species}</td>
+                        <td>${s.location}</td>
+                        <td>${s.count}</td>
+                        <td>${new Date(s.timestamp).toLocaleString()}</td>
+                    </tr>
                 `).join('');
+
+                // Initialize DataTable
+                dataTable = new DataTables('#sightingsTable', {
+                    order: [[4, 'desc']], // Sort by date descending
+                    responsive: true
+                });
+
             } catch (error) {
                 console.error('Error:', error);
             }
         }
 
+        // Initial load
         loadSightings();
     </script>
 </body>
