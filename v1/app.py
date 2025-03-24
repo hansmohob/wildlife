@@ -12,9 +12,17 @@ from botocore.exceptions import ClientError
 
 app = Flask(__name__)
 
-# Initialize AWS S3 client
-s3 = boto3.client('s3')
-BUCKET_NAME = os.getenv('BUCKET_NAME')  
+# Initialize AWS client
+s3 = boto3.client('s3', region_name=os.getenv('AWS_REGION'))
+
+# Get environment variables
+PREFIX_CODE = os.getenv('PREFIX_CODE')
+AWS_ACCOUNT_ID = os.getenv('AWS_ACCOUNT_ID')
+BUCKET_NAME = os.getenv('BUCKET_NAME')
+AWS_REGION = os.getenv('AWS_REGION')
+
+if not all([PREFIX_CODE, AWS_ACCOUNT_ID, BUCKET_NAME, AWS_REGION]):
+    raise ValueError("Missing required environment variables. Please set PREFIX_CODE, AWS_ACCOUNT_ID, BUCKET_NAME, and AWS_REGION")
 
 # Initialize MongoDB client
 client = MongoClient('mongodb://localhost:27017/')
@@ -42,6 +50,15 @@ def report_sighting():
             
         data = request.form.to_dict()
         print("Converted form data:", data)
+        
+        # Convert latitude and longitude to float
+        try:
+            if 'latitude' in data:
+                data['latitude'] = float(data['latitude'])
+            if 'longitude' in data:
+                data['longitude'] = float(data['longitude'])
+        except ValueError:
+            return jsonify({"error": "Invalid coordinates"}), 400
         
         # Add timestamp
         data['timestamp'] = datetime.utcnow()
@@ -77,7 +94,6 @@ def report_sighting():
                     print("Error message:", str(s3_error))
                     import traceback
                     print("Traceback:", traceback.format_exc())
-                    # Continue without image if S3 upload fails
                     print("Continuing without image...")
         
         print("Attempting MongoDB insert with data:", data)
@@ -85,7 +101,13 @@ def report_sighting():
         result = db.sightings.insert_one(data)
         print("MongoDB insert successful, ID:", result.inserted_id)
         
-        return jsonify({"message": "Sighting reported successfully"}), 200
+        # Create response with no-cache headers
+        response = jsonify({"message": "Sighting reported successfully"})
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response, 200
+
     except Exception as e:
         print("\n=== Error in report_sighting ===")
         print("Error type:", type(e))
@@ -93,20 +115,17 @@ def report_sighting():
         import traceback
         print("Full traceback:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
-        
-        # Store in MongoDB
-        db.sightings.insert_one(data)
-        
-        return jsonify({"message": "Sighting reported successfully"}), 200
-    except Exception as e:
-        print("Final error:", str(e))
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/wildlife/api/sightings', methods=['GET'])
 def get_sightings():
     try:
+        print("Getting sightings from MongoDB")
         sightings = list(db.sightings.find({}, {'_id': False}))
-        return jsonify(sightings), 200
+        response = jsonify(sightings)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response, 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
