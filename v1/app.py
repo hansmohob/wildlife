@@ -11,7 +11,6 @@ from io import BytesIO
 from botocore.exceptions import ClientError
 
 app = Flask(__name__)
-app.config['APPLICATION_ROOT'] = '/wildlife'
 
 # Initialize AWS S3 client
 s3 = boto3.client('s3')
@@ -21,32 +20,51 @@ BUCKET_NAME = os.getenv('BUCKET_NAME')
 client = MongoClient('mongodb://localhost:27017/')
 db = client.wildlife_db
 
-@app.route('/')
+@app.route('/wildlife')
+def wildlife_root():
+    return redirect('/wildlife/')
+
+@app.route('/wildlife/')
 def index():
     return render_template('index.html')
 
-@app.route('/api/sightings', methods=['POST'])
+@app.route('/wildlife/api/sightings', methods=['POST'])
 def report_sighting():
+    print("\n=== Starting new sighting report ===")
     try:
+        print("POST request received")
+        print("Form data:", request.form)
+        print("Files:", request.files)
+        
+        if not request.form:
+            print("No form data received")
+            return jsonify({"error": "No form data received"}), 400
+            
         data = request.form.to_dict()
+        print("Converted form data:", data)
+        
+        # Add timestamp
         data['timestamp'] = datetime.utcnow()
+        print("Added timestamp:", data['timestamp'])
         
         # Handle image upload if present
         if 'image' in request.files:
             file = request.files['image']
+            print("Image file received:", file.filename)
+            
             if file.filename:
-                # Get file extension
-                file_extension = os.path.splitext(file.filename)[1]
-                # Create unique filename with UUID
-                unique_filename = f"{uuid.uuid4()}{file_extension}"
-                filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
-                print("Attempting S3 upload to bucket:", BUCKET_NAME)
-                print("With filename:", filename)
-                
                 try:
-                    # Upload to S3
+                    file_extension = os.path.splitext(file.filename)[1]
+                    unique_filename = f"{uuid.uuid4()}{file_extension}"
+                    filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
+                    print("Generated filename:", filename)
+                    print("Attempting S3 upload to bucket:", BUCKET_NAME)
+                    
+                    if not BUCKET_NAME:
+                        raise ValueError("BUCKET_NAME environment variable not set")
+                    
                     s3.upload_fileobj(
-                           file,
+                        file,
                         BUCKET_NAME,
                         filename,
                         ExtraArgs={'ContentType': file.content_type}
@@ -54,11 +72,27 @@ def report_sighting():
                     print("S3 upload successful")
                     data['image_url'] = filename
                 except Exception as s3_error:
-                    print("S3 upload failed with error:", str(s3_error))
+                    print("S3 upload error details:")
                     print("Error type:", type(s3_error))
+                    print("Error message:", str(s3_error))
                     import traceback
                     print("Traceback:", traceback.format_exc())
-                    raise
+                    # Continue without image if S3 upload fails
+                    print("Continuing without image...")
+        
+        print("Attempting MongoDB insert with data:", data)
+        # Store in MongoDB
+        result = db.sightings.insert_one(data)
+        print("MongoDB insert successful, ID:", result.inserted_id)
+        
+        return jsonify({"message": "Sighting reported successfully"}), 200
+    except Exception as e:
+        print("\n=== Error in report_sighting ===")
+        print("Error type:", type(e))
+        print("Error message:", str(e))
+        import traceback
+        print("Full traceback:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
         
         # Store in MongoDB
         db.sightings.insert_one(data)
@@ -68,7 +102,7 @@ def report_sighting():
         print("Final error:", str(e))
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/sightings', methods=['GET'])
+@app.route('/wildlife/api/sightings', methods=['GET'])
 def get_sightings():
     try:
         sightings = list(db.sightings.find({}, {'_id': False}))
@@ -76,7 +110,7 @@ def get_sightings():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/images/<path:image_key>')
+@app.route('/wildlife/api/images/<path:image_key>')
 def get_image(image_key):
     try:
         # Basic validation of image key

@@ -20,6 +20,8 @@
                         Report Wildlife Sighting
                     </div>
                     <div class="card-body">
+                        <div id="alertMessage" class="alert" style="display: none;" role="alert"></div>
+
                         <form id="sightingForm" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label for="species" class="form-label">Species</label>
@@ -44,14 +46,14 @@
             </div>
             <div class="col-md-8">
                 <div class="card">
-                    <div iv class="card-header">
+                    <div class="card-header">
                         Recent Sightings
                     </div>
                     <div class="card-body">
                         <table id="sightingsTable" class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Image</e</th>
+                                    <th>Image</th>
                                     <th>Species</th>
                                     <th>Location</th>
                                     <th>Count</th>
@@ -77,23 +79,55 @@
 
         document.getElementById('sightingForm').onsubmit = async (e) => {
             e.preventDefault();
+            console.log("Form submitted");
             const formData = new FormData(e.target);
+
+            // Show feedback
+            const alertDiv = document.getElementById('alertMessage');
+            
+            // Log form data for debugging
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
             
             try {
-                const response = await fetch('/api/sightings', {
+                console.log("Sending request to /wildlife/api/sightings");
+                const response = await fetch('/wildlife/api/sightings', {
                     method: 'POST',
                     body: formData
                 });
 
+                console.log("Response status:", response.status);
                 if (response.ok) {
-                    loadSightings();
+                    console.log("Upload successful");
+                    // Show success message
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.style.display = 'block';
+                    alertDiv.textContent = 'Sighting reported successfully!';
+                    
                     e.target.reset();
+                    await loadSightings();
+                    
+                    // Hide the alert after 3 seconds
+                    setTimeout(() => {
+                        alertDiv.style.display = 'none';
+                    }, 3000);
                 } else {
-                    throw new Error('Failed to submit sighting');
+                    const errorData = await response.text();
+                    console.error("Server error:", errorData);
+                    // Show error message
+                    alertDiv.className = 'alert alert-danger';
+                    alertDiv.style.display = 'block';
+                    alertDiv.textContent = 'Failed to submit sighting';
+                    
+                    throw new Error(`Failed to submit sighting: ${errorData}`);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to submit sighting');
+                // Show error message
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.style.display = 'block';
+                alertDiv.textContent = 'Failed to submit sighting';
             }
         };
 
@@ -126,7 +160,7 @@
                 `).join('');
 
                 // Initialize DataTable
-                dataTable = new DataTables('#sightingsTable', {
+                dataTable = $('#sightingsTable').DataTable({
                     order: [[4, 'desc']], // Sort by date descending
                     responsive: true
                 });
@@ -139,5 +173,6 @@
         // Initial load
         loadSightings();
     </script>
+
 </body>
 </html>
