@@ -27,11 +27,9 @@
             background-color: #212529 !important;
             border-color: #212529 !important;
         }
-
         .page-link {
             color: #212529;
         }
-
         .page-link:hover {
             color: #000000;
         }
@@ -41,12 +39,51 @@
         #gpsTable tbody tr {
             height: 32px !important;
         }
-
         #gpsTable tbody td {
             vertical-align: middle;
         }
         .navbar {
             background-color: #198754;
+        }
+        .ol-popup {
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+            min-width: 280px;
+        }
+        .ol-popup:after, .ol-popup:before {
+            top: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+        .ol-popup:after {
+            border-top-color: white;
+            border-width: 10px;
+            left: 48px;
+            margin-left: -10px;
+        }
+        .ol-popup:before {
+            border-top-color: #cccccc;
+            border-width: 11px;
+            left: 48px;
+            margin-left: -11px;
+        }
+        .popup-content h4 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #198754;
+        }
+        .popup-content p {
+            margin: 0 0 5px 0;
         }
     </style>
 </head>
@@ -106,7 +143,10 @@
                                 <label for="image" class="form-label">Image (optional)</label>
                                 <input type="file" class="form-control" id="image" name="image" accept="image/*">
                             </div>
-                            <button type="submit" class="btn btn-success">Submit Sighting</button>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-success">Submit Sighting</button>
+                                <button type="button" class="btn btn-dark" id="resetForm">Clear Selection</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -184,6 +224,31 @@
         let map;
         let vectorSource;
         let vectorLayer;
+        let selectionSource;
+        let selectionLayer;
+
+        function createPopupContent(point) {
+            let content = '<div class="popup-content">';
+            if (point.animal_id) {
+                // GPS tracking point
+                content += `
+                    <h4>${point.species}</h4>
+                    <p><strong>ID:</strong> ${point.animal_id}</p>
+                    <p><strong>Battery:</strong> ${point.battery}%</p>
+                    <p><strong>Last Updated:</strong> ${new Date(point.timestamp).toLocaleString()}</p>
+                `;
+            } else {
+                // Sighting point
+                content += `
+                    <h4>${point.species}</h4>
+                    <p><strong>Habitat:</strong> ${point.habitat}</p>
+                    <p><strong>Count:</strong> ${point.count}</p>
+                    <p><strong>Date:</strong> ${new Date(point.timestamp).toLocaleString()}</p>
+                `;
+            }
+            content += '</div>';
+            return content;
+        }
 
         // Initialize the map
         function initMap() {
@@ -192,35 +257,86 @@
                 source: vectorSource
             });
 
+            selectionSource = new ol.source.Vector({});
+            selectionLayer = new ol.layer.Vector({
+                source: selectionSource
+            });
+
+            const popupElement = document.createElement('div');
+            popupElement.className = 'ol-popup';
+            const popup = new ol.Overlay({
+                element: popupElement,
+                autoPan: true,
+                autoPanAnimation: {
+                    duration: 250
+                }
+            });
+
             map = new ol.Map({
                 target: 'map',
                 layers: [
                     new ol.layer.Tile({
                         source: new ol.source.OSM()
                     }),
-                    vectorLayer
+                    vectorLayer,
+                    selectionLayer
                 ],
+                overlays: [popup],
                 view: new ol.View({
                     center: ol.proj.fromLonLat([57.5704, -20.2759]), // Mauritius coordinates
                     zoom: 9
                 })
             });
 
+            // Combined click handler
             map.on('click', function(evt) {
-                const lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
-                document.getElementById('longitude').value = lonlat[0].toFixed(6);
-                document.getElementById('latitude').value = lonlat[1].toFixed(6);
-                updateMarker(lonlat);
+                const feature = map.forEachFeatureAtPixel(evt.pixel, function(feature) {
+                    return feature;
+                });
+
+                if (feature && feature.get('popupContent')) {
+                    // If clicking on a sighting or GPS feature, show popup
+                    const coordinates = feature.getGeometry().getCoordinates();
+                    popup.setPosition(coordinates);
+                    popupElement.innerHTML = feature.get('popupContent');
+                } else {
+                    // If clicking on the map (not on a feature), update coordinates
+                    const lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+                    document.getElementById('longitude').value = lonlat[0].toFixed(6);
+                    document.getElementById('latitude').value = lonlat[1].toFixed(6);
+                    updateMarker([lonlat[0], lonlat[1]]);
+                    popup.setPosition(undefined); // Hide popup
+                }
+            });
+
+            // Optional: Change cursor to pointer when hovering over a feature
+            map.on('pointermove', function(e) {
+                if (e.dragging) return;
+
+                const pixel = map.getEventPixel(e.originalEvent);
+                const hit = map.hasFeatureAtPixel(pixel);
+
+                map.getTargetElement().style.cursor = hit ? 'pointer' : '';
             });
         }
 
         // Update marker on map
         function updateMarker(lonlat) {
-            vectorSource.clear();
-            const feature = new ol.Feature({
-                geometry: new ol.geom.Point(ol.proj.fromLonLat(lonlat))
-            });
-            vectorSource.addFeature(feature);
+            selectionSource.clear();
+            if (lonlat.length) {
+                const feature = new ol.Feature({
+                    geometry: new ol.geom.Point(ol.proj.fromLonLat(lonlat))
+                });
+                const selectionStyle = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({color: '#007bff'}),  // Bootstrap primary blue
+                        stroke: new ol.style.Stroke({color: 'white', width: 2})
+                    })
+                });
+                feature.setStyle(selectionStyle);
+                selectionSource.addFeature(feature);
+            }
         }
 
         // Update map with all markers
@@ -237,19 +353,20 @@
                         new ol.style.Style({
                             image: new ol.style.Circle({
                                 radius: 6,
-                                fill: new ol.style.Fill({color: '#000000'}), // Changed from blue to black
+                                fill: new ol.style.Fill({color: '#000000'}),
                                 stroke: new ol.style.Stroke({color: 'white', width: 2})
                             })
                         }) :
                         new ol.style.Style({
                             image: new ol.style.Circle({
                                 radius: 6,
-                                fill: new ol.style.Fill({color: '#198754'}), // Changed from red to Bootstrap success green
+                                fill: new ol.style.Fill({color: '#198754'}),
                                 stroke: new ol.style.Stroke({color: 'white', width: 2})
                             })
                         });
                     
                     feature.setStyle(style);
+                    feature.set('popupContent', createPopupContent(s));
                     vectorSource.addFeature(feature);
                 }
             });
@@ -392,7 +509,7 @@
                 gpsDataTable = $('#gpsTable').DataTable({
                     order: [[4, 'desc']],
                     paging: false,
-                    pageLength: 11, // Show 11 entries per page
+                    pageLength: 11,
                     searching: false,
                     lengthChange: false,
                     columnDefs: [
@@ -425,11 +542,12 @@
                 });
 
                 if (response.ok) {
-                    alertDiv.style.backgroundColor = '#198754'; // Bootstrap success green
+                    alertDiv.style.backgroundColor = '#198754';
                     alertDiv.style.color = 'white';
                     alertDiv.className = 'alert';
                     alertDiv.textContent = 'Sighting reported successfully!';
                     e.target.reset();
+                    selectionSource.clear(); // Clear selection marker
                     await loadSightings();
                 } else {
                     throw new Error('Failed to submit sighting');
@@ -441,6 +559,12 @@
             
             alertDiv.style.display = 'block';
             setTimeout(() => { alertDiv.style.display = 'none'; }, 3000);
+        };
+
+        // Add reset handler
+        document.getElementById('resetForm').onclick = function() {
+            document.getElementById('sightingForm').reset();
+            selectionSource.clear(); // Clear only the selection marker
         };
 
         // Initialize map and load data when page loads

@@ -1,34 +1,75 @@
-from flask import Flask, render_template, request, jsonify, redirect, send_from_directory
 from datetime import datetime, timedelta
+from io import BytesIO
+import os
+import uuid
+
 import boto3
 from botocore.exceptions import ClientError
-import os
+from flask import (
+    Flask, 
+    jsonify, 
+    redirect, 
+    render_template, 
+    request, 
+    send_file
+)
 from pymongo import MongoClient
-from werkzeug.utils import secure_filename
-import uuid
-from flask import send_file, jsonify
-from io import BytesIO
-from botocore.exceptions import ClientError
 
 app = Flask(__name__, 
            static_folder='static',
            static_url_path='/wildlife/static')
 
-# Initialize AWS client
-s3 = boto3.client('s3', region_name=os.getenv('AWS_REGION'))
+# Environment variables
+ENV_VARS = {
+    'PREFIX_CODE': os.getenv('PREFIX_CODE'),
+    'AWS_ACCOUNT_ID': os.getenv('AWS_ACCOUNT_ID'),
+    'BUCKET_NAME': os.getenv('BUCKET_NAME'),
+    'AWS_REGION': os.getenv('AWS_REGION')
+}
 
-# Get environment variables
-PREFIX_CODE = os.getenv('PREFIX_CODE')
-AWS_ACCOUNT_ID = os.getenv('AWS_ACCOUNT_ID')
-BUCKET_NAME = os.getenv('BUCKET_NAME')
-AWS_REGION = os.getenv('AWS_REGION')
+if not all(ENV_VARS.values()):
+    raise ValueError("Missing required environment variables: " + 
+                    ", ".join(k for k, v in ENV_VARS.items() if not v))
 
-if not all([PREFIX_CODE, AWS_ACCOUNT_ID, BUCKET_NAME, AWS_REGION]):
-    raise ValueError("Missing required environment variables. Please set PREFIX_CODE, AWS_ACCOUNT_ID, BUCKET_NAME, and AWS_REGION")
+# Initialize clients
+s3 = boto3.client('s3', region_name=ENV_VARS['AWS_REGION'])
+mongo_client = MongoClient('mongodb://localhost:27017/')
+db = mongo_client.wildlife_db
 
-# Initialize MongoDB client
-client = MongoClient('mongodb://localhost:27017/')
-db = client.wildlife_db
+# Constants
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
+CACHE_HEADERS = {
+    'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+}
+
+def add_cache_headers(response):
+    """Add no-cache headers to to response"""
+    for key, value in CACHE_HEADERS.items():
+        response.headers[key] = value
+    return response
+
+def handle_image_upload(file):
+    """Handle image upload to S3"""
+    if not file.filename:
+        return None
+    
+    try:
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
+        
+        s3.upload_fileobj(
+            file,
+            ENV_VARS['BUCKET_NAME'],
+            filename,
+            ExtraArgs={'ContentType': file.content_type}
+        )
+        return filename
+    except Exception as e:
+        print(f"Error uploading image: {str(e)}")
+        return None
 
 @app.route('/wildlife')
 def wildlife_root():
@@ -40,145 +81,77 @@ def index():
 
 @app.route('/wildlife/api/sightings', methods=['POST'])
 def report_sighting():
-    print("\n=== Starting new sighting report ===")
-    try:
-        print("POST request received")
-        print("Form data:", request.form)
-        print("Files:", request.files)
-        
-        if not request.form:
-            print("No form data received")
-            return jsonify({"error": "No form data received"}), 400
+    if not request.form:
+        return jsonify({"error": "No form data received"}), 400
             
+    try:
         data = request.form.to_dict()
-        print("Converted form data:", data)
         
-        # Convert latitude and longitude to float
-        try:
-            if 'latitude' in data:
-                data['latitude'] = float(data['latitude'])
-            if 'longitude' in data:
-                data['longitude'] = float(data['longitude'])
-        except ValueError:
-            return jsonify({"error": "Invalid coordinates"}), 400
+        # Convert coordinates to float
+        for coord in ['latitude', 'longitude']:
+            if coord in data:
+                try:
+                    data[coord] = float(data[coord])
+                except ValueError:
+                    return jsonify({"error": f"Invalid {coord}"}), 400
         
         # Add timestamp
         data['timestamp'] = datetime.utcnow()
-        print("Added timestamp:", data['timestamp'])
         
-        # Handle image upload if present
+        # Handle image upload
         if 'image' in request.files:
-            file = request.files['image']
-            print("Image file received:", file.filename)
-            
-            if file.filename:
-                try:
-                    file_extension = os.path.splitext(file.filename)[1]
-                    unique_filename = f"{uuid.uuid4()}{file_extension}"
-                    filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
-                    print("Generated filename:", filename)
-                    print("Attempting S3 upload to bucket:", BUCKET_NAME)
-                    
-                    if not BUCKET_NAME:
-                        raise ValueError("BUCKET_NAME environment variable not set")
-                    
-                    s3.upload_fileobj(
-                        file,
-                        BUCKET_NAME,
-                        filename,
-                        ExtraArgs={'ContentType': file.content_type}
-                    )
-                    print("S3 upload successful")
-                    data['image_url'] = filename
-                except Exception as s3_error:
-                    print("S3 upload error details:")
-                    print("Error type:", type(s3_error))
-                    print("Error message:", str(s3_error))
-                    import traceback
-                    print("Traceback:", traceback.format_exc())
-                    print("Continuing without image...")
+            image_url = handle_image_upload(request.files['image'])
+            if image_url:
+                data['image_url'] = image_url
         
-        print("Attempting MongoDB insert with data:", data)
         # Store in MongoDB
-        result = db.sightings.insert_one(data)
-        print("MongoDB insert successful, ID:", result.inserted_id)
+        db.sightings.insert_one(data)
         
-        # Create response with no-cache headers
         response = jsonify({"message": "Sighting reported successfully"})
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response, 200
+        return add_cache_headers(response), 200
 
     except Exception as e:
-        print("\n=== Error in report_sighting ===")
-        print("Error type:", type(e))
-        print("Error message:", str(e))
-        import traceback
-        print("Full traceback:", traceback.format_exc())
+        print(f"Error in report_sighting: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/wildlife/api/sightings', methods=['GET'])
 def get_sightings():
     try:
-        print("Getting sightings from MongoDB")
         sightings = list(db.sightings.find({}, {'_id': False}))
         response = jsonify(sightings)
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response, 200
+        return add_cache_headers(response), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/wildlife/api/images/<path:image_key>')
 def get_image(image_key):
+    # Validate image key
+    if not image_key or '..' in image_key:
+        return jsonify({"error": "Invalid image key"}), 400
+
+    if not any(image_key.lower().endswith(ext) for ext in ALLOWED_IMAGE_EXTENSIONS):
+        return jsonify({"error": "Invalid file type"}), 400
+
     try:
-        # Basic validation of image key
-        if not image_key or '..' in image_key:  # Prevent path traversal
-            return jsonify({"error": "Invalid image key"}), 400
-
-        # Check file extension
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif'}
-        if not any(image_key.lower().endswith(ext) for ext in allowed_extensions):
-            return jsonify({"error": "Invalid file type"}), 400
-
-        try:
-            # Get the image from S3
-            response = s3.get_object(Bucket=BUCKET_NAME, Key=image_key)
-            image_data = response['Body'].read()
-            
-            # Create a BytesIO object
-            image_stream = BytesIO(image_data)
-            
-            # Get content type or default to jpeg
-            content_type = response.get('ContentType', 'image/jpeg')
-            
-            return send_file(
-                image_stream,
-                mimetype=content_type,
-                as_attachment=False
-            )
-
-        except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
-            if error_code == 'NoSuchKey':
-                return jsonify({"error": "Image not found"}), 404
-            else:
-                print(f"S3 error: {str(e)}")  # Log the error
-                return jsonify({"error": "Failed to retrieve image"}), 500
-
+        response = s3.get_object(Bucket=ENV_VARS['BUCKET_NAME'], Key=image_key)
+        return send_file(
+            BytesIO(response['Body'].read()),
+            mimetype=response.get('ContentType', 'image/jpeg'),
+            as_attachment=False
+        )
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        if error_code == 'NoSuchKey':
+            return jsonify({"error": "Image not found"}), 404
+        return jsonify({"error": "Failed to retrieve image"}), 500
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")  # Log the error
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/wildlife/api/gps', methods=['POST'])
 def receive_gps():
     try:
         data = request.json
-        # Add timestamp
         data['timestamp'] = datetime.utcnow()
-        # Store in MongoDB in a new collection
         db.gps_tracking.insert_one(data)
         return jsonify({"message": "GPS data received"}), 200
     except Exception as e:
@@ -193,11 +166,7 @@ def get_gps_data():
             {'_id': False}
         ))
         response = jsonify(gps_data)
-        # Add cache control headers
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response, 200
+        return add_cache_headers(response), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
