@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, jsonify, redirect
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify, redirect, send_from_directory
+from datetime import datetime, timedelta
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -10,7 +10,9 @@ from flask import send_file, jsonify
 from io import BytesIO
 from botocore.exceptions import ClientError
 
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_folder='static',
+           static_url_path='/wildlife/static')
 
 # Initialize AWS client
 s3 = boto3.client('s3', region_name=os.getenv('AWS_REGION'))
@@ -185,13 +187,17 @@ def receive_gps():
 @app.route('/wildlife/api/gps', methods=['GET'])
 def get_gps_data():
     try:
-        # Get last 24 hours of GPS data
         cutoff = datetime.utcnow() - timedelta(hours=24)
         gps_data = list(db.gps_tracking.find(
             {"timestamp": {"$gt": cutoff}}, 
             {'_id': False}
         ))
-        return jsonify(gps_data), 200
+        response = jsonify(gps_data)
+        # Add cache control headers
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response, 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
