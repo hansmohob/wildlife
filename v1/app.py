@@ -170,5 +170,30 @@ def get_image(image_key):
         print(f"Unexpected error: {str(e)}")  # Log the error
         return jsonify({"error": "Internal server error"}), 500
 
+@app.route('/wildlife/api/gps', methods=['POST'])
+def receive_gps():
+    try:
+        data = request.json
+        # Add timestamp
+        data['timestamp'] = datetime.utcnow()
+        # Store in MongoDB in a new collection
+        db.gps_tracking.insert_one(data)
+        return jsonify({"message": "GPS data received"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/wildlife/api/gps', methods=['GET'])
+def get_gps_data():
+    try:
+        # Get last 24 hours of GPS data
+        cutoff = datetime.utcnow() - timedelta(hours=24)
+        gps_data = list(db.gps_tracking.find(
+            {"timestamp": {"$gt": cutoff}}, 
+            {'_id': False}
+        ))
+        return jsonify(gps_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

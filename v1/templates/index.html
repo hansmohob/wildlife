@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wildlife Monitoring System</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.5.1/ol.css">
     <style>
         body {
             min-height: 100vh;
@@ -19,25 +24,24 @@
             width: 100%;
         }
     </style>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
+    <!-- Navigation Bar -->
     <nav class="navbar navbar-dark bg-dark">
         <div class="container">
             <span class="navbar-brand mb-0 h1">Wildlife Monitoring System</span>
         </div>
     </nav>
 
+    <!-- Main Content -->
     <div class="container mt-4">
         <div class="row">
+            <!-- Left Column - Form -->
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header">
-                        Report Wildlife Sighting
-                    </div>
+                    <div class="card-header">Report Wildlife Sighting</div>
                     <div class="card-body">
                         <div id="alertMessage" class="alert" style="display: none;" role="alert"></div>
-
                         <form id="sightingForm" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label for="species" class="form-label">Species</label>
@@ -68,19 +72,19 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Right Column - Map and Table -->
             <div class="col-md-8">
+                <!-- Map Card -->
                 <div class="card mb-3">
-                    <div class="card-header">
-                        Sighting Locations
-                    </div>
+                    <div class="card-header">Sighting Locations</div>
                     <div class="card-body">
                         <div id="map"></div>
                     </div>
                 </div>
+                <!-- Table Card -->
                 <div class="card">
-                    <div class="card-header">
-                        Recent Sightings
-                    </div>
+                    <div class="card-header">Recent Sightings</div>
                     <div class="card-body">
                         <table id="sightingsTable" class="table table-striped">
                             <thead>
@@ -92,8 +96,7 @@
                                     <th>Date/Time</th>
                                 </tr>
                             </thead>
-                            <tbody id="sightingsList">
-                            </tbody>
+                            <tbody id="sightingsList"></tbody>
                         </table>
                     </div>
                 </div>
@@ -101,127 +104,123 @@
         </div>
     </div>
 
+    <!-- Footer -->
     <footer class="footer mt-auto py-3 bg-dark text-light">
         <div class="container text-center">
             Built with <a href="https://aws.amazon.com/q/developer/" target="_blank" class="text-light">Amazon Q for Developer</a>
         </div>
     </footer>
 
+    <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.5.1/dist/ol.js"></script>
     
     <script>
         let dataTable;
         let map;
-        let markers = [];
+        let vectorSource;
+        let vectorLayer;
 
+        // Initialize the map
         function initMap() {
-            map = L.map('map').setView([-20.2759, 57.5704], 10);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+            vectorSource = new ol.source.Vector({});
+            vectorLayer = new ol.layer.Vector({
+                source: vectorSource
+            });
 
-            const southWest = L.latLng(-20.52, 57.28);
-            const northEast = L.latLng(-19.98, 57.82);
-            const bounds = L.latLngBounds(southWest, northEast);
-            
-            map.setMaxBounds(bounds);
-            map.setMinZoom(9);
-            map.setMaxZoom(18);
+            map = new ol.Map({
+                target: 'map',
+                layers: [
+                    new ol.layer.Tile({
+                        source: new ol.source.OSM()
+                    }),
+                    vectorLayer
+                ],
+                view: new ol.View({
+                    center: ol.proj.fromLonLat([57.5704, -20.2759]), // Mauritius coordinates
+                    zoom: 9
+                })
+            });
 
-            map.on('click', function(e) {
-                document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
-                document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+            map.on('click', function(evt) {
+                const lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+                document.getElementById('longitude').value = lonlat[0].toFixed(6);
+                document.getElementById('latitude').value = lonlat[1].toFixed(6);
+                updateMarker(lonlat);
             });
         }
 
+        // Update marker on map
+        function updateMarker(lonlat) {
+            vectorSource.clear();
+            const feature = new ol.Feature({
+                geometry: new ol.geom.Point(ol.proj.fromLonLat(lonlat))
+            });
+            vectorSource.addFeature(feature);
+        }
+
+        // Update map with sightings
         function updateMap(sightings) {
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            
+            vectorSource.clear();
             sightings.forEach(s => {
-                if (s.latitude && s.longitude) {
-                    const marker = L.marker([s.latitude, s.longitude])
-                        .bindPopup(`
-                            <strong>${s.species}</strong><br>
-                            Count: ${s.count}<br>
-                            Date: ${new Date(s.timestamp).toLocaleString()}<br>
-                            ${s.image_url ? `<img src="/wildlife/api/images/${s.image_url}" style="max-width: 150px;"><br>` : ''}
-                        `)
-                        .addTo(map);
-                    markers.push(marker);
+                if (s.longitude && s.latitude) {
+                    const feature = new ol.Feature({
+                        geometry: new ol.geom.Point(ol.proj.fromLonLat([parseFloat(s.longitude), parseFloat(s.latitude)]))
+                    });
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 6,
+                            fill: new ol.style.Fill({color: 'red'}),
+                            stroke: new ol.style.Stroke({color: 'white', width: 2})
+                        })
+                    }));
+                    vectorSource.addFeature(feature);
                 }
             });
         }
 
+        // Form submission handler
         document.getElementById('sightingForm').onsubmit = async (e) => {
             e.preventDefault();
-            console.log("Form submitted");
             const formData = new FormData(e.target);
-
-            // Show feedback
             const alertDiv = document.getElementById('alertMessage');
             
-            // Log form data for debugging
-            for (let pair of formData.entries()) {
-                console.log(pair[0] + ': ' + pair[1]);
-            }
-            
             try {
-                console.log("Sending request to /wildlife/api/sightings");
                 const response = await fetch('/wildlife/api/sightings', {
                     method: 'POST',
                     body: formData
                 });
 
-                console.log("Response status:", response.status);
                 if (response.ok) {
-                    console.log("Upload successful");
-                    // Show success message
                     alertDiv.className = 'alert alert-success';
-                    alertDiv.style.display = 'block';
                     alertDiv.textContent = 'Sighting reported successfully!';
-                    
                     e.target.reset();
                     await loadSightings();
-                    
-                    // Hide the alert after 3 seconds
-                    setTimeout(() => {
-                        alertDiv.style.display = 'none';
-                    }, 3000);
                 } else {
-                    const errorData = await response.text();
-                    console.error("Server error:", errorData);
-                    // Show error message
-                    alertDiv.className = 'alert alert-danger';
-                    alertDiv.style.display = 'block';
-                    alertDiv.textContent = 'Failed to submit sighting';
-                    
-                    throw new Error(`Failed to submit sighting: ${errorData}`);
+                    throw new Error('Failed to submit sighting');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                // Show error message
                 alertDiv.className = 'alert alert-danger';
-                alertDiv.style.display = 'block';
                 alertDiv.textContent = 'Failed to submit sighting';
             }
+            
+            alertDiv.style.display = 'block';
+            setTimeout(() => { alertDiv.style.display = 'none'; }, 3000);
         };
 
+        // Load sightings and update table/map
         async function loadSightings() {
             try {
                 const response = await fetch('/wildlife/api/sightings');
                 const sightings = await response.json();
                 
-                // Destroy existing DataTable if it exists
                 if (dataTable) {
                     dataTable.destroy();
                 }
 
-                // Update table content
                 const tbody = document.getElementById('sightingsList');
                 tbody.innerHTML = sightings.map(s => `
                     <tr>
@@ -244,34 +243,25 @@
                     </tr>
                 `).join('');
 
-                const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
-                const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl, {
-                    container: 'body'
-                }))
-
+                // Initialize DataTable
                 dataTable = $('#sightingsTable').DataTable({
                     order: [[4, 'desc']], 
-                    responsive: true,
-                    drawCallback: function() {
-                        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
-                        const popoverList = [...popoverTriggerList].map(popoverTriggerEl => 
-                            new bootstrap.Popover(popoverTriggerEl, {
-                                container: 'body'
-                            })
-                        )
-                    }
+                    responsive: true
                 });
 
+                // Update map with sightings
                 updateMap(sightings);
 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading sightings:', error);
             }
         }
 
+        // Initialize map and load sightings when page loads
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadSightings();
         });
     </script>
 </body>
+</html>
