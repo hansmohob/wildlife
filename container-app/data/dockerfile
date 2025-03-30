@@ -1,0 +1,7 @@
+FROM mongodb/mongodb-community-server:8.0-ubi8
+
+# MongoDB port
+EXPOSE 27017
+
+# MongoDB uses the default CMD from the base image
+# to start the database server
