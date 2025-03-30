@@ -1275,7 +1275,7 @@ Resources:
                             git push -u origin main"
           #### END: GIT-REMOTE-S3 BOOTSTRAP ####
 
-          #### START: SAMPLE APPLICATION ####
+          #### START: WILDLIFE APPLICATION ####
           echo "INFO: Installing MongoDB..."
 
           cat > /etc/yum.repos.d/mongodb-org-8.0.repo << EOF
@@ -1314,7 +1314,14 @@ Resources:
           echo "INFO: Starting sample app..."
           systemctl enable wildlife-app
           systemctl start wildlife-app
-          #### END: SAMPLE APPLICATION ####
+          #### END: WILDLIFE APPLICATION ####
+
+          #### START: AWS102 WORKSHOP BOOTSTRAP ####
+          sed -i "s/\${PREFIX_CODE}/${PrefixCode}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
+          sed -i "s/\${AWS_ACCOUNT_ID}/${AWS::AccountId}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wr/wildlife.env
+          sed -i "s/\${BUCKET_NAME}/${s3bucketwildlife}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
+          sed -i "s/\${AWS_REGION}/${AWS::Region}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
+          #### END: AWS102 WORKSHOP BOOTSTRAP ####
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-ec2-codeserver
