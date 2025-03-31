@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: AWS 102 Workshop environment setup - Creates EC2 instance with code-server and sample application for containerization
+Description: AWS 102 Workshop environment setup - Creates EC2 instance with code-server and wildlife application for containerization
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -1292,7 +1292,7 @@ Resources:
           systemctl enable mongod
 
           echo "INFO: Installing Python packages..."
-          pip3 install -r /home/ec2-user/workspace/my-workspace/appsrc/requirements.txt
+          pip3 install -r /home/ec2-user/workspace/my-workspace/app-ec2/requirements.txt
           chown -R ec2-user:ec2-user /home/ec2-user/workspace/my-workspace
 
           cat > /etc/systemd/system/wildlife-app.service << EOF
@@ -1303,7 +1303,7 @@ Resources:
           [Service]
           User=ec2-user
           Environment="PREFIX_CODE=${PrefixCode}" "AWS_ACCOUNT_ID=${AWS::AccountId}" "BUCKET_NAME=${s3bucketwildlife}" "AWS_REGION=${AWS::Region}"
-          WorkingDirectory=/home/ec2-user/workspace/my-workspace/appsrc
+          WorkingDirectory=/home/ec2-user/workspace/my-workspace/app-ec2
           ExecStart=/usr/bin/python3 app.py
           Restart=always
 
@@ -1317,10 +1317,10 @@ Resources:
           #### END: WILDLIFE APPLICATION ####
 
           #### START: AWS102 WORKSHOP BOOTSTRAP ####
-          sed -i "s/\${PREFIX_CODE}/${PrefixCode}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
-          sed -i "s/\${AWS_ACCOUNT_ID}/${AWS::AccountId}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wr/wildlife.env
-          sed -i "s/\${BUCKET_NAME}/${s3bucketwildlife}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
-          sed -i "s/\${AWS_REGION}/${AWS::Region}/g" /home/ec2-user/workspace/my-workspace/Workshop/docker/wildlife.env
+          sed -i "s/\${PREFIX_CODE}/${PrefixCode}/g" /home/ec2-user/workspace/my-workspace/container-appwildlife.env
+          sed -i "s/\${AWS_ACCOUNT_ID}/${AWS::AccountId}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
+          sed -i "s/\${BUCKET_NAME}/${s3bucketwildlife}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
+          sed -i "s/\${AWS_REGION}/${AWS::Region}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
           #### END: AWS102 WORKSHOP BOOTSTRAP ####
       Tags:
         - Key: Name
