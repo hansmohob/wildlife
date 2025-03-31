@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Browser-based development environment with VS Code, S3-backed git storage, and secure CloudFront access
+Description: AWS 102 Workshop environment setup - Creates EC2 instance with code-server and sample application for containerization
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
