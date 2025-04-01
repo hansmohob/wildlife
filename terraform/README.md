@@ -1,0 +1,1 @@
+The files in this folder are broken. They are designed to be used as part of the AWS102 workshop

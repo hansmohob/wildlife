@@ -43,7 +43,7 @@
             vertical-align: middle;
         }
         .navbar {
-            background-color: #198754;
+            background-color: #CD5C5C;
         }
         .ol-popup {
             position: absolute;
@@ -80,7 +80,7 @@
         .popup-content h4 {
             margin: 0 0 10px 0;
             font-size: 18px;
-            color: #198754;
+            color: #CD5C5C;
         }
         .popup-content p {
             margin: 0 0 5px 0;
@@ -89,10 +89,10 @@
 </head>
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-banner" style="background-color: #198754;">
+    <nav class="navbar navbar-banner" style="background-color: #CD5C5C;">
         <div class="container">
             <div class="d-flex justify-content-between align-items-center w-100">
-                <span class="navbar-brand mb-0 h1 text-white">Wildlife Monitoring System</span>
+                <span class="navbar-brand mb-0 h1 text-white">Wildlife Monitoring System (Containerized)</span>
                 <img src="/wildlife/static/logo.png" alt="Logo" height="30" class="banner-logo">
             </div>
         </div>
@@ -207,7 +207,7 @@
     <!-- Footer -->
     <footer class="footer mt-auto py-3 bg-dark text-light">
         <div class="container text-center">
-            Built with <a href="https://aws.amazon.com/q/developer/" target="_blank" class="text-light">Amazon Q for Developer</a>
+            Built with containers using Amazon ECS | <a href="https://aws.amazon.com/q/developer/" target="_blank" class="text-light">Amazon Q for Developer</a>
         </div>
     </footer>
 
@@ -360,7 +360,7 @@
                         new ol.style.Style({
                             image: new ol.style.Circle({
                                 radius: 6,
-                                fill: new ol.style.Fill({color: '#198754'}),
+                                fill: new ol.style.Fill({color: '#CD5C5C'}),
                                 stroke: new ol.style.Stroke({color: 'white', width: 2})
                             })
                         });
@@ -542,7 +542,7 @@
                 });
 
                 if (response.ok) {
-                    alertDiv.style.backgroundColor = '#198754';
+                    alertDiv.style.backgroundColor = '#CD5C5C';
                     alertDiv.style.color = 'white';
                     alertDiv.className = 'alert';
                     alertDiv.textContent = 'Sighting reported successfully!';
