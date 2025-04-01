@@ -1,19 +1,20 @@
 # Python base image as other services
-
+FROM python:3.12-slim
 
 # Set the working directory
-
+WORKDIR /app
 
 # Copy requirements first to leverage Docker cache
-
+COPY requirements.txt .
 
 # Install Python packages
-
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy applicatcation code
-
+COPY app.py .
 
 # Expose port 5000 for Flask
-
+EXPOSE 5000
 
 # Run the application
+CMD ["python", "app.py"]
