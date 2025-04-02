@@ -1,23 +1,13 @@
 from datetime import datetime, timedelta
 import os
-
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
 # Environment variables
-ENV_VARS = {
-    'PREFIX_CODE': os.getenv('PREFIX_CODE'),
-    'AWS_ACCOUNT_ID': os.getenv('AWS_ACCOUNT_ID'),
-    'BUCKET_NAME': os.getenv('BUCKET_NAME'),
-    'AWS_REGION': os.getenv('AWS_REGION'),
-    'MONGODB_URI': os.getenv('MONGODB_URI')
-}
-
-if not all(ENV_VARS.values()):
-    raise ValueError("Missing required environment variables: " + 
-                    ", ".join(k for k, v in ENV_VARS.items() if not v))
+load_dotenv('wildlife.env')
 
 # Initialize MongoDB client
 mongo_client = MongoClient(ENV_VARS['MONGODB_URI'])
