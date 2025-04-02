@@ -1,5 +1,6 @@
 from flask import Flask, redirect, render_template
 import os
+from dotenv import load_dotenv
 
 app = Flask(__name__, 
            static_folder='static',
