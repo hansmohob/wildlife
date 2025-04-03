@@ -1,2 +1,2 @@
 Flask==2.3.3
-pythothon-dotenv==1.1.0
+python-dotenv==1.1.0

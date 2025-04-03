@@ -29,7 +29,7 @@
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-group": "/ecs/wildlife-frontend-task",
-                    "awslogs-gs-create-group": "true",
+                    "awslogs-create-group": "true",
                     "awslogs-region": "REPLACE_AWS_REGION",
                     "awslogs-stream-prefix": "ecs"
                 }
