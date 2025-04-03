@@ -1,0 +1,39 @@
+{
+    "family": "wildlife-data-task",
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "networkMode": "awsvpc",
+    "containerDefinitions": [
+        {
+            "name": "wildlife-data",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "name": "data-27017-tcp",
+                    "containerPort": 27017,
+                    "hostPort": 27017,
+                    "protocol": "tcp",
+                    "appProtocol": "tcp"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/wildlife-data-task",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ],
+    "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+    "cpu": "1024",
+    "memory": "2048",
+    "runtimePlatform": {
+        "cpuArchitecture": "ARM64",
+        "operatingSystemFamily": "LINUX"
+    }
+}
