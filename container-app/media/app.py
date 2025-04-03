@@ -1,3 +1,5 @@
+# Media Service - Handles image upload, storage, and retrieval for wildlife sightings
+
 from datetime import datetime
 from io import BytesIO
 import os

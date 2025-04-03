@@ -1,5 +1,6 @@
-# MongoDB uses the default CMD from the base image
-# to start the database server
+# Data Service - MongoDB database for storing wildlife sightings and GPS data
+
+# MongoDB uses the default CMD from the base image to start the database server
 FROM mongodb/mongodb-community-server:8.0-ubi8
 
 # MongoDB port

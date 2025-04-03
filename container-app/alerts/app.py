@@ -1,3 +1,5 @@
+# Alerts Service - Handles GPS tracking data and notifications for wildlife collars
+
 from datetime import datetime, timedelta
 import os
 from flask import Flask, jsonify, request

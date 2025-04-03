@@ -1,3 +1,5 @@
+# Frontend Service - Web interface for rangers to view and submit wildlife sightings
+
 from flask import Flask, redirect, render_template
 import os
 from dotenv import load_dotenv
