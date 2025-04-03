@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 app = Flask(__name__)
 
 # Environment variables
-load_dotenv('wildlife.env')
+load_dotenv('variables-alerts.env')
 
 # Initialize MongoDB client
 mongo_client = MongoClient(ENV_VARS['MONGODB_URI'])

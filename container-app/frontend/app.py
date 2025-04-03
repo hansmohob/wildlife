@@ -9,7 +9,7 @@ app = Flask(__name__,
            static_url_path='/wildlife/static')
 
 # Environment variables
-load_dotenv('wildlife.env')
+load_dotenv('variables-frontend.env')
 
 @app.route('/wildlife')
 def wildlife_root():

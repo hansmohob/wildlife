@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 app = Flask(__name__)
 
 # Environment variables
-load_dotenv('wildlife.env')
+load_dotenv('variables-media.env')
 
 # Initialize S3 client
 s3 = boto3.client('s3', region_name=ENV_VARS['AWS_REGION'])

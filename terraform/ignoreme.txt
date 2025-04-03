@@ -1,6 +1,6 @@
 # Media Service - Handles image upload, storage, and retrieval for wildlife sightings
 
-# Python base image as other services
+# Python base image
 FROM python:3.12-slim
 
 # Set the working directory
@@ -8,12 +8,12 @@ WORKDIR /app
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-COPY ../wildlife.env .
+COPY variables-media.env .
 
 # Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy applicatcation code
+# Copy application code
 COPY app.py .
 
 # Expose port 5000 for Flask
