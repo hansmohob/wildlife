@@ -1,0 +1,82 @@
+# Create Image Registry (ECR)
+aws ecr create-repository --repository-name wildlife/frontend 
+aws ecr create-repository --repository-name wildlife/media
+aws ecr create-repository --repository-name wildlife/data
+aws ecr create-repository --repository-name wildlife/alerts
+
+# Build Container Image (ECR)
+cd /home/ec2-user/workspace/my-workspace/container-app
+cd alerts
+docker build -t wildlife/alerts .
+cd ../data
+docker build -t wildlife/data .
+cd ../frontend
+docker build -t wildlife/frontend .
+cp /home/ec2-user/workspace/my-workspace/terraform/ignoreme.txt /home/ec2-user/workspace/my-workspace/container-app/media/dockerfile
+cd ../media
+docker build -t wildlife/media .
+docker image ls | grep wildlife
+
+# Push Container Image (ECR)
+aws ecr get-login-password --region REPLACE_AWS_REGION | docker login --username AWS --password-stdin REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com
+docker tag wildlife/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
+docker tag wildlife/data REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest
+docker tag wildlife/frontend REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
+docker tag wildlife/media REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+
+# Setup Networking (VPC)
+aws ec2 create-vpc-endpoint --vpc-id REPLACE_VPC_ID --vpc-endpoint-type Interface --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.api --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 --security-group-ids REPLACE_SECURITY_GROUP_APP
+aws ec2 create-vpc-endpoint --vpc-id REPLACE_VPC_ID --vpc-endpoint-type Interface --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.dkr --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 --security-group-ids REPLACE_SECURITY_GROUP_APP
+
+# Deploy Cluster (ECS)
+aws ecs create-cluster --cluster-name wildlife-ecs --service-connect-defaults namespace=wildlife --capacity-providers FARGATE FARGATE_SPOT --settings name=containerInsights,value=enabled
+
+# Create Task Definition (ECS)
+aws ecs register-task-definition \
+    --family wildlife-alerts-task \
+    --requires-compatibilities FARGATE \
+    --cpu 1024 \
+    --memory 2048 \
+    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
+    --network-mode awsvpc \
+    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --container-definitions "[{\"name\":\"wildlife-alerts\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"alerts-http\",\"appProtocol\":\"http\"}]}]"
+aws ecs register-task-definition \
+    --family wildlife-data-task \
+    --requires-compatibilities FARGATE \
+    --cpu 1024 \
+    --memory 2048 \
+    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
+    --network-mode awsvpc \
+    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --container-definitions "[{\"name\":\"wildlife-data\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":27017,\"protocol\":\"tcp\",\"name\":\"data-tcp\",\"appProtocol\":\"http\"}]}]"
+aws ecs register-task-definition \
+    --family wildlife-frontend-task \
+    --requires-compatibilities FARGATE \
+    --cpu 1024 \
+    --memory 2048 \
+    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
+    --network-mode awsvpc \
+    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --container-definitions "[{\"name\":\"wildlife-frontend\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"frontend-http\",\"appProtocol\":\"http\"}]}]"
+aws ecs register-task-definition \
+    --family wildlife-media-task \
+    --requires-compatibilities EC2 \
+    --cpu 1024 \
+    --memory 2048 \
+    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
+    --network-mode awsvpc \
+    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --container-definitions "[{\"name\":\"wildlife-media\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"media-http\",\"appProtocol\":\"http\"}]}]"
+
+# Deploy Remaining Tasks (ECS)
+
+# Load Balancing (ALB)
+
+# Create Services (ECS)
+
+# Create Storage (S3)
