@@ -4,6 +4,7 @@ from datetime import datetime
 from io import BytesIO
 import os
 import uuid
+import boto3
 from flask import Flask, jsonify, send_file, request
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
