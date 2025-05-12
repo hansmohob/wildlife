@@ -1,15 +1,10 @@
 # Frontend Service - Web interface for rangers to view and submit wildlife sightings
 
 from flask import Flask, redirect, render_template
-import os
-from dotenv import load_dotenv
 
 app = Flask(__name__, 
            static_folder='static',
            static_url_path='/wildlife/static')
-
-# Environment variables
-load_dotenv('variables-frontend.env')
 
 @app.route('/wildlife')
 def wildlife_root():

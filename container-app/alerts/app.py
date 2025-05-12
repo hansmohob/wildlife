@@ -1,18 +1,13 @@
 # Alerts Service - Handles GPS tracking data and notifications for wildlife collars
 
 from datetime import datetime, timedelta
-import os
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
-from dotenv import load_dotenv
 
 app = Flask(__name__)
 
-# Environment variables
-load_dotenv('variables-alerts.env')
-
 # Initialize MongoDB client
-mongo_client = MongoClient(ENV_VARS['MONGODB_URI'])
+mongo_client = MongoClient('mongodb://wildlife-data:27017')
 db = mongo_client.wildlife_db
 
 @app.route('/wildlife/api/gps', methods=['POST'])

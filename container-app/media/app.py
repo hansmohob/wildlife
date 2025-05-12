@@ -11,11 +11,15 @@ from dotenv import load_dotenv
 
 app = Flask(__name__)
 
-# Environment variables
-load_dotenv('variables-media.env')
+# Load environment variables
+load_dotenv('wildlife.env')
+
+# Get environment variables directly
+AWS_REGION = os.getenv('AWS_REGION')
+BUCKET_NAME = os.getenv('BUCKET_NAME')
 
 # Initialize S3 client
-s3 = boto3.client('s3', region_name=ENV_VARS['AWS_REGION'])
+s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Constants
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
@@ -32,7 +36,7 @@ def handle_image_upload(file):
         
         s3.upload_fileobj(
             file,
-            ENV_VARS['BUCKET_NAME'],
+            BUCKET_NAME,
             filename,
             ExtraArgs={'ContentType': file.content_type}
         )
@@ -48,13 +52,13 @@ def get_image(image_key):
         return jsonify({"error": "Invalid image key"}), 400
 
     if not any(image_key.lower().endswith(ext) for ext in ALLOWED_IMAGE_EXTENSIONS):
-        return jsonify({"error": "Invalid file type"}), 4, 400
+        return jsonify({"error": "Invalid file type"}), 400
 
     try:
-        response = s3.get_object(Bucket=ENV_VARS['BUCKET_NAME'], Key=image_key)
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=image_key)
         return send_file(
             BytesIO(response['Body'].read()),
-            mimetyetype=response.get('ContentType', 'image/jpeg'),
+            mimetype=response.get('ContentType', 'image/jpeg'),
             as_attachment=False
         )
     except ClientError as e:
