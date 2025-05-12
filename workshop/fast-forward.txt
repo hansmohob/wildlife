@@ -36,6 +36,7 @@ aws ec2 create-vpc-endpoint --vpc-id REPLACE_VPC_ID --vpc-endpoint-type Interfac
 aws ecs create-cluster --cluster-name wildlife-ecs --service-connect-defaults namespace=wildlife --capacity-providers FARGATE FARGATE_SPOT --settings name=containerInsights,value=enabled
 
 # Create Task Definition (ECS)
+# Alerts Task
 aws ecs register-task-definition \
     --family wildlife-alerts-task \
     --requires-compatibilities FARGATE \
@@ -44,9 +45,35 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --container-definitions "[{\"name\":\"wildlife-alerts\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"alerts-http\",\"appProtocol\":\"http\"}]}]"
+    --container-definitions '[
+        {
+            "name": "wildlife-alerts",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest",
+            "essential": true,
+            "readonlyRootFilesystem": true,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "protocol": "tcp",
+                    "name": "alerts-http",
+                    "appProtocol": "http"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/wildlife-alerts",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ]'
 
 # Deploy Remaining Tasks (ECS)
+
+# Data Task
 aws ecs register-task-definition \
     --family wildlife-data-task \
     --requires-compatibilities FARGATE \
@@ -55,7 +82,33 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --container-definitions "[{\"name\":\"wildlife-data\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":27017,\"protocol\":\"tcp\",\"name\":\"data-tcp\",\"appProtocol\":\"http\"}]}]"
+    --container-definitions '[
+        {
+            "name": "wildlife-data",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest",
+            "essential": true,
+            "readonlyRootFilesystem": false,
+            "portMappings": [
+                {
+                    "containerPort": 27017,
+                    "protocol": "tcp",
+                    "name": "data-tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/wildlife-data",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ]'
+
+# Frontend Task
 aws ecs register-task-definition \
     --family wildlife-frontend-task \
     --requires-compatibilities FARGATE \
@@ -64,7 +117,33 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --container-definitions "[{\"name\":\"wildlife-frontend\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"frontend-http\",\"appProtocol\":\"http\"}]}]"
+    --container-definitions '[
+        {
+            "name": "wildlife-frontend",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
+            "essential": true,
+            "readonlyRootFilesystem": true,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "protocol": "tcp",
+                    "name": "frontend-http",
+                    "appProtocol": "http"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/wildlife-frontend",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ]'
+
+# Media Task
 aws ecs register-task-definition \
     --family wildlife-media-task \
     --requires-compatibilities EC2 \
@@ -73,10 +152,42 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --container-definitions "[{\"name\":\"wildlife-media\",\"image\":\"REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest\",\"essential\":true,\"readonlyRootFilesystem\":true,\"portMappings\":[{\"containerPort\":5000,\"protocol\":\"tcp\",\"name\":\"media-http\",\"appProtocol\":\"http\"}]}]"
-
-# Load Balancing (ALB)
+    --container-definitions '[
+        {
+            "name": "wildlife-media",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest",
+            "essential": true,
+            "readonlyRootFilesystem": true,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "protocol": "tcp",
+                    "name": "media-http",
+                    "appProtocol": "http"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/wildlife-media",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ]'
+# Networking (ALB)
+TG_ARN=$(aws elbv2 create-target-group --name wildlife-frontend-tg --protocol HTTP --port 5000 --vpc-id REPLACE_VPC_ID --target-type ip --health-check-path /wildlife --health-check-interval-seconds 30 --health-check-timeout-seconds 5 --healthy-threshold-count 2 --unhealthy-threshold-count 2 --ip-address-type ipv4 --output text --query 'TargetGroups[0].TargetGroupArn')
+ALB_ARN=$(aws elbv2 create-load-balancer --name wildlife-alb --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 --security-groups REPLACE_SECURITY_GROUP_APP --scheme internet-facing --type application --output text --query 'LoadBalancers[0].LoadBalancerArn')
+aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN
 
 # Create Services (ECS)
+aws ecs create-service --cluster wildlife-ecs --service-name wildlife-data --task-definition wildlife-data-task --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-data,clientAliases=[{port=27017}]}]" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100"
+aws ecs create-service --cluster wildlife-ecs --service-name wildlife-frontend --task-definition wildlife-frontend-task --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}]" --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100"
+aws ecs create-service --cluster wildlife-ecs --service-name wildlife-alerts --task-definition wildlife-alerts-task --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}]" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100"
+aws ecs create-service --cluster wildlife-ecs --service-name wildlife-media --task-definition wildlife-media-task --desired-count 2 --launch-type EC2 --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}]" --placement-constraints "type=distinctInstance" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100"
+
+    
 
 # Create Storage (S3)
