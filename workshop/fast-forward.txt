@@ -86,6 +86,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
     --no-cli-pager \
     --container-definitions '[
         {
@@ -123,6 +124,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
     --container-definitions '[
         {
             "name": "wildlife-media",
@@ -158,6 +160,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
     --container-definitions '[
         {
             "name": "wildlife-data",
@@ -192,6 +195,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
     --container-definitions '[
         {
             "name": "wildlife-frontend",
@@ -219,8 +223,8 @@ aws ecs register-task-definition \
     ]'
 
 # Networking (ALB)
-TG_ARN=$(aws elbv2 create-target-group --name REPLACE_PREFIX_CODE-targetgroup-ecs --protocol HTTP --port 5000 --vpc-id REPLACE_VPC_ID --target-type ip --health-check-path /wildlife --health-check-interval-seconds 30 --health-check-timeout-seconds 5 --healthy-threshold-count 2 --unhealthy-threshold-count 2 --ip-address-type ipv4 --output text --query 'TargetGroups[0].TargetGroupArn')
-ALB_ARN=$(aws elbv2 create-load-balancer --name REPLACE_PREFIX_CODE-alb --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 --security-groups REPLACE_SECURITY_GROUP_APP --scheme internet-facing --type application --output text --query 'LoadBalancers[0].LoadBalancerArn')
+TG_ARN=$(aws elbv2 create-target-group --name REPLACE_PREFIX_CODE-targetgroup-ecs --protocol HTTP --port 5000 --vpc-id REPLACE_VPC_ID --target-type ip --health-check-path /wildlife/health --health-check-interval-seconds 30 --health-check-timeout-seconds 5 --healthy-threshold-count 2 --unhealthy-threshold-count 2 --ip-address-type ipv4 --output text --query 'TargetGroups[0].TargetGroupArn')
+ALB_ARN=$(aws elbv2 create-load-balancer --name REPLACE_PREFIX_CODE-alb-ecs --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 --security-groups REPLACE_SECURITY_GROUP_ALB-scheme internet-facing --type application --output text --query 'LoadBalancers[0].LoadBalancerArn')
 aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
 
 # Create Services (ECS)
@@ -231,3 +235,11 @@ aws ecs create-service --cluster REPLACE_PREFIX_CODE-ecs --service-name wildlife
     
 
 # Create Storage (S3)
+
+
+# Testing
+# Reconfigure Lambda function to generate data to ECS alert service
+ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
+
+# Update Lambda function
+aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
