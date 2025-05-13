@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 app = Flask(__name__)
 
 # Load environment variables
-load_dotenv('wildlife.env')
+load_dotenv('media.env')
 
 # Get environment variables directly
 AWS_REGION = os.getenv('AWS_REGION')
