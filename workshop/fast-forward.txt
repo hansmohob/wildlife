@@ -61,9 +61,11 @@ aws autoscaling create-auto-scaling-group \
 
 ASG_ARN=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupARN' --output text)
 
-aws ecs create-cluster \
+aws ecs put-account-setting --name containerInsights --value enhanced
+aws ecs create-cluster 
     --cluster-name REPLACE_PREFIX_CODE-ecs \
     --service-connect-defaults namespace=wildlife \
+    --settings name=containerInsights,value=enhanced \
     --no-cli-pager
 
 aws ecs create-capacity-provider \
@@ -171,8 +173,7 @@ aws ecs register-task-definition \
                 {
                     "containerPort": 27017,
                     "protocol": "tcp",
-                    "name": "data-tcp",
-                    "appProtocol": "http"
+                    "name": "data-tcp"
                 }
             ],
             "logConfiguration": {
@@ -232,7 +233,6 @@ aws ecs create-service --cluster REPLACE_PREFIX_CODE-ecs --service-name wildlife
 aws ecs create-service --cluster REPLACE_PREFIX_CODE-ecs --service-name wildlife-frontend --task-definition wildlife-frontend-task --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}]" --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" --no-cli-pager
 aws ecs create-service --cluster REPLACE_PREFIX_CODE-ecs --service-name wildlife-alerts --task-definition wildlife-alerts-task --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}]" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" --no-cli-pager
 aws ecs create-service --cluster REPLACE_PREFIX_CODE-ecs --service-name wildlife-media --task-definition wildlife-media-task --desired-count 2 --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}]" --placement-constraints "type=distinctInstance" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" --no-cli-pager
-    
 
 # Create Storage (S3)
 
