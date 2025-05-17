@@ -6,17 +6,14 @@ aws ecr create-repository --repository-name wildlife/alerts
 ### END: 01 Create Image Registry (ECR) ###
 
 ### START: 02 Build Container Image (ECR) ###
-cd /home/ec2-user/workspace/my-workspace/container-app
-cd alerts
-docker build -t wildlife/alerts .
-cd ../data
-docker build -t wildlife/data .
-cd ../frontend
-docker build -t wildlife/frontend .
-cp /home/ec2-user/workspace/my-workspace/terraform/ignoreme.txt /home/ec2-user/workspace/my-workspace/container-app/media/dockerfile
-cd ../media
-docker build -t wildlife/media .
-docker image ls | grep wildlife
+cd /home/ec2-user/workspace/my-workspace/container-app && \
+    docker build -t wildlife/alerts ./alerts && \
+    docker build -t wildlife/data ./data && \
+    docker build -t wildlife/frontend ./frontend && \
+    cp ../terraform/ignoreme.txt ./media/dockerfile && \
+    docker build -t wildlife/media ./media && \
+    docker image ls | grep wildlife
+
 ### END: 02 Build Container Image (ECR) ###
 
 ### START: 03 Push Container Image (ECR) ###
@@ -98,157 +95,47 @@ aws ecs put-cluster-capacity-providers \
 ### END: 05 Deploy Cluster (ECS) ###
 
 ### START: 06 Create Task Definition (ECS) ###
-### Deploy to Fargate
 aws ecs register-task-definition \
-    --family wildlife-alerts-task \
-    --requires-compatibilities FARGATE \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-alerts",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest",
-            "essential": true,
-            "readonlyRootFilesystem": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "alerts-http",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-alerts",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        }
-    ]'
-
-### Deploy to EC2
-aws ecs register-task-definition \
-    --family wildlife-media-task \
-    --requires-compatibilities EC2 \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-media",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest",
-            "essential": true,
-            "readonlyRootFilesystem": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "media-http",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-media",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        }
-    ]'
-
-### Deploy using JSON
-aws ecs register-task-definition \
-    --family wildlife-data-task \
-    --requires-compatibilities FARGATE \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-data",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest",
-            "essential": true,
-            "readonlyRootFilesystem": false,
-            "portMappings": [
-                {
-                    "containerPort": 27017,
-                    "protocol": "tcp",
-                    "name": "data-tcp"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-data",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        }
-    ]'
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts.json \
+    --no-cli-pager
 
 aws ecs register-task-definition \
-    --family wildlife-frontend-task \
-    --requires-compatibilities FARGATE \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-frontend",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
-            "essential": true,
-            "readonlyRootFilesystem": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "frontend-http",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-frontend",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        }
-    ]'
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media.json \
+    --no-cli-pager
+
+aws ecs register-task-definition \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data.json \
+    --no-cli-pager
+
+aws ecs register-task-definition \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend.json \
+    --no-cli-pager
 ### END: 06 Create Task Definition (ECS) ###
 
 ### START: 07 Networking (ALB) ###
-TG_ARN=$(aws elbv2 create-target-group --name REPLACE_PREFIX_CODE-targetgroup-ecs --protocol HTTP --port 5000 --vpc-id REPLACE_VPC_ID --target-type ip --health-check-path /wildlife/health --health-check-interval-seconds 30 --health-check-timeout-seconds 5 --healthy-threshold-count 2 --unhealthy-threshold-count 2 --ip-address-type ipv4 --output text --query 'TargetGroups[0].TargetGroupArn')
+TG_ARN=$(aws elbv2 create-target-group \
+    --name REPLACE_PREFIX_CODE-targetgroup-ecs \
+    --protocol HTTP \
+    --port 5000 \
+    --vpc-id REPLACE_VPC_ID \
+    --target-type ip \
+    --health-check-path /wildlife/health \
+    --health-check-interval-seconds 30 \
+    --health-check-timeout-seconds 5 \
+    --healthy-threshold-count 2 \
+    --unhealthy-threshold-count 2 \
+    --ip-address-type ipv4 \
+    --output text \
+    --query 'TargetGroups[0].TargetGroupArn')
 
-ALB_ARN=$(aws elbv2 create-load-balancer --name REPLACE_PREFIX_CODE-alb-ecs --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 --security-groups REPLACE_SECURITY_GROUP_ALB-scheme internet-facing --type application --output text --query 'LoadBalancers[0].LoadBalancerArn')
+ALB_ARN=$(aws elbv2 create-load-balancer \
+    --name REPLACE_PREFIX_CODE-alb-ecs \
+    --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 \
+    --security-groups REPLACE_SECURITY_GROUP_ALB \
+    --scheme internet-facing \
+    --type application \
+    --output text \
+    --query 'LoadBalancers[0].LoadBalancerArn')
 
 aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
 ### END: 07 Networking (ALB) ###
@@ -333,7 +220,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
     --no-cli-pager \
     --container-definitions '[
         {
@@ -372,7 +259,7 @@ aws ecs register-task-definition \
         }
     ]'
 ### Update Alerts Service
-aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment
+aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment --no-cli-pager
 ### Update Media Task
 aws ecs register-task-definition \
     --family wildlife-media-task \
@@ -382,7 +269,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
     --no-cli-pager \
     --container-definitions '[
         {
@@ -421,7 +308,7 @@ aws ecs register-task-definition \
         }
     ]'
 ### Update Media Service
-aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment
+aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
 ### Update Data Task
 aws ecs register-task-definition \
     --family wildlife-data-task \
@@ -431,7 +318,7 @@ aws ecs register-task-definition \
     --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
     --no-cli-pager \
     --container-definitions '[
         {
@@ -469,7 +356,7 @@ aws ecs register-task-definition \
         }
     ]'
 ### Update Data Service
-aws ecs update-service --cluster wildlife-ecs --service wildlife-data-service --task-definition wildlife-data-task --force-new-deployment
+aws ecs update-service --cluster wildlife-ecs --service wildlife-data-service --task-definition wildlife-data-task --force-new-deployment --no-cli-pager
 ### Update Frontend Task
 aws ecs register-task-definition \
     --family wildlife-frontend-task \
@@ -477,7 +364,7 @@ aws ecs register-task-definition \
     --network-mode awsvpc \
     --cpu 1024 \
     --memory 2048 \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
     --no-cli-pager \
     --container-definitions '[
@@ -489,7 +376,8 @@ aws ecs register-task-definition \
                 {
                     "containerPort": 5000,
                     "protocol": "tcp",
-                    "name": "frontend-http"
+                    "name": "frontend-http",
+                     "appProtocol": "http"                   
                 }
             ],
             "logConfiguration": {
@@ -514,7 +402,7 @@ aws ecs register-task-definition \
         }
     ]'
 ### Update Frontend Service
-aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment
+aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
 ### END: 09 Deploy X-Ray ###
 
 ### 10 Testing ###

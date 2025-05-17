@@ -1,40 +1,38 @@
 {
     "family": "wildlife-frontend-task",
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
     "cpu": "1024",
     "memory": "2048",
     "runtimePlatform": {
-        "cpuArchitecture": "ARM64",
-        "operatingSystemFamily": "LINUX"
+        "operatingSystemFamily": "LINUX",
+        "cpuArchitecture": "ARM64"
     },
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution",
+    "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
     "containerDefinitions": [
         {
             "name": "wildlife-frontend",
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
             "essential": true,
+            "readonlyRootFilesystem": true,
             "portMappings": [
                 {
-                    "name": "frontend-5000-tcp",
                     "containerPort": 5000,
-                    "hostPort": 5000,
                     "protocol": "tcp",
+                    "name": "frontend-http",
                     "appProtocol": "http"
                 }
             ],
-            "readonlyRootFilesystem": true,
-               "logConfiguration": {
+            "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/wildlife-frontend-task",
                     "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/wildlife-frontend",
                     "awslogs-region": "REPLACE_AWS_REGION",
                     "awslogs-stream-prefix": "ecs"
                 }
             }
         }
-    ],
-    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution"
+    ]
 }
