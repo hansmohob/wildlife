@@ -80,7 +80,7 @@ ASG_ARN=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name
 
 aws ecs put-account-setting --name containerInsights --value enhanced
 
-aws ecs create-cluster 
+aws ecs create-cluster \
     --cluster-name REPLACE_PREFIX_CODE-ecs \
     --service-connect-defaults namespace=wildlife \
     --settings name=containerInsights,value=enhanced \
