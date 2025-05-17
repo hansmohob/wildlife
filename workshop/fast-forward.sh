@@ -293,9 +293,11 @@ aws ecs create-service \
     --service-name wildlife-media-service \
     --task-definition wildlife-media-task \
     --desired-count 2 \
-    --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+    --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}]" \
-    --placement-constraints "type=distinctInstance" --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
+    --placement-constraints "type=distinctInstance" \
+    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 ### END: 08 Create Services (ECS) ###
 
