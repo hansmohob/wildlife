@@ -145,6 +145,7 @@ aws ecs register-task-definition \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
     --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --no-cli-pager \
     --container-definitions '[
         {
             "name": "wildlife-media",
@@ -181,6 +182,7 @@ aws ecs register-task-definition \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
     --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --no-cli-pager \
     --container-definitions '[
         {
             "name": "wildlife-data",
@@ -215,6 +217,7 @@ aws ecs register-task-definition \
     --network-mode awsvpc \
     --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
     --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskgeneric \
+    --no-cli-pager \
     --container-definitions '[
         {
             "name": "wildlife-frontend",
