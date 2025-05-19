@@ -188,219 +188,28 @@ aws ecs create-service \
 ### END: 08 Create Services (ECS) ###
 
 ### START: 09 Deploy AWS Distrubution for Open Telemetry (ADOT) ###
-### Update Task role
-aws iam put-role-policy \
-    --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
-    --policy-name REPLACE_PREFIX_CODE-iampolicy-xray  \
-    --policy-document '{
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "xray:PutTraceSegments",
-                    "xray:PutTelemetryRecords",
-                    "xray:GetSamplingRules",
-                    "xray:GetSamplingTargets",
-                    "xray:GetSamplingStatisticSummaries"
-                ],
-                "Resource": [
-                    "*"
-                ]
-            }
-        ]
-    }'
-### Update Alerts Task
 aws ecs register-task-definition \
-    --family wildlife-alerts-task \
-    --requires-compatibilities FARGATE \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-alerts",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest",
-            "essential": true,
-            "readonlyRootFilesystem": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "alerts-http",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-alerts",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        },
-        {
-            "name": "xray-daemon",
-            "image": "amazon/aws-xray-daemon",
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 2000,
-                    "protocol": "udp"
-                }
-            ]
-        }
-    ]'
-### Update Alerts Service
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_OTEL.json \
+    --no-cli-pager
+
 aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment --no-cli-pager
-### Update Media Task
+
 aws ecs register-task-definition \
-    --family wildlife-media-task \
-    --requires-compatibilities EC2 \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-media",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest",
-            "essential": true,
-            "readonlyRootFilesystem": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "media-http",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-media",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        },
-        {
-            "name": "xray-daemon",
-            "image": "amazon/aws-xray-daemon",
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 2000,
-                    "protocol": "udp"
-                }
-            ]
-        }
-    ]'
-### Update Media Service
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_OTEL.json \
+    --no-cli-pager
+
 aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
-### Update Data Task
+
 aws ecs register-task-definition \
-    --family wildlife-data-task \
-    --requires-compatibilities FARGATE \
-    --cpu 1024 \
-    --memory 2048 \
-    --runtime-platform operatingSystemFamily=LINUX,cpuArchitecture=ARM64 \
-    --network-mode awsvpc \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-data",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest",
-            "essential": true,
-            "readonlyRootFilesystem": false,
-            "portMappings": [
-                {
-                    "containerPort": 27017,
-                    "protocol": "tcp",
-                    "name": "data-tcp"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-data",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        },
-        {
-            "name": "xray-daemon",
-            "image": "amazon/aws-xray-daemon",
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 2000,
-                    "protocol": "udp"
-                }
-            ]
-        }
-    ]'
-### Update Data Service
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_OTEL.json \
+    --no-cli-pager
+
 aws ecs update-service --cluster wildlife-ecs --service wildlife-data-service --task-definition wildlife-data-task --force-new-deployment --no-cli-pager
-### Update Frontend Task
+
 aws ecs register-task-definition \
-    --family wildlife-frontend-task \
-    --requires-compatibilities FARGATE \
-    --network-mode awsvpc \
-    --cpu 1024 \
-    --memory 2048 \
-    --task-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
-    --execution-role-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution \
-    --no-cli-pager \
-    --container-definitions '[
-        {
-            "name": "wildlife-frontend",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "protocol": "tcp",
-                    "name": "frontend-http",
-                     "appProtocol": "http"                   
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/aws/ecs/wildlife-frontend",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            }
-        },
-        {
-            "name": "xray-daemon",
-            "image": "amazon/aws-xray-daemon",
-            "essential": true,
-            "portMappings": [
-                {
-                    "containerPort": 2000,
-                    "protocol": "udp"
-                }
-            ]
-        }
-    ]'
-### Update Frontend Service
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_OTEL.json \
+    --no-cli-pager
+
 aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
 ### END: 09 Deploy AWS Distrubution for Open Telemetry (ADOT)###
 
