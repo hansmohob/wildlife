@@ -95,19 +95,19 @@ aws ecs put-cluster-capacity-providers \
 
 ### START: 06 Create Task Definition (ECS) ###
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v1.json \
     --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
     --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_v1.json \
     --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v1.json \
     --no-cli-pager
 ### END: 06 Create Task Definition (ECS) ###
 
@@ -189,25 +189,25 @@ aws ecs create-service \
 
 ### START: 09 Deploy AWS Distrubution for Open Telemetry (ADOT) ###
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_OTEL.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v2.json \
     --no-cli-pager
 
 aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_OTEL.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v2.json \
     --no-cli-pager
 
 aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_OTEL.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_v3.json \
     --no-cli-pager
 
 aws ecs update-service --cluster wildlife-ecs --service wildlife-data-service --task-definition wildlife-data-task --force-new-deployment --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_OTEL.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v2.json \
     --no-cli-pager
 
 aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
