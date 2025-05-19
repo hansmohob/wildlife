@@ -20,5 +20,12 @@ COPY templates ./templates
 # Expose port 5000 for Flask
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "app.py"]
+# Set OpenTelemetry environment variables
+ENV OTEL_PYTHON_DISTRO="aws_distro"
+ENV OTEL_PYTHON_CONFIGURATOR="aws_configurator"
+ENV OTEL_SERVICE_NAME="wildlife-frontend"
+ENV OTEL_TRACES_SAMPLER="xray"
+ENV OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+
+# Run the application with OpenTelemetry instrumentation
+CMD ["opentelemetry-instrument", "python", "app.py"]

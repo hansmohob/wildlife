@@ -1,5 +1,6 @@
 # Media Service - Handles image upload, storage, and retrieval for wildlife sightings
 
+
 # Python base image as other services
 
 
@@ -18,4 +19,7 @@
 # Expose port 5000 for Flask
 
 
-# Run the application
+# Set OpenTelemetry environment variables
+
+
+# Run the application with OpenTelemetry instrumentation

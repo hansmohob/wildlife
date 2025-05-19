@@ -13,7 +13,6 @@ cd /home/ec2-user/workspace/my-workspace/container-app && \
     cp ../terraform/ignoreme.txt ./media/dockerfile && \
     docker build -t wildlife/media ./media && \
     docker image ls | grep wildlife
-
 ### END: 02 Build Container Image (ECR) ###
 
 ### START: 03 Push Container Image (ECR) ###
@@ -188,7 +187,7 @@ aws ecs create-service \
     --no-cli-pager
 ### END: 08 Create Services (ECS) ###
 
-### START: 09 Deploy X-Ray ###
+### START: 09 Deploy AWS Distrubution for Open Telemetry (ADOT) ###
 ### Update Task role
 aws iam put-role-policy \
     --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
@@ -403,11 +402,9 @@ aws ecs register-task-definition \
     ]'
 ### Update Frontend Service
 aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
-### END: 09 Deploy X-Ray ###
+### END: 09 Deploy AWS Distrubution for Open Telemetry (ADOT)###
 
 ### 10 Testing ###
 # Reconfigure Lambda function to generate data to ECS alert service
 ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
-
-### Update Lambda function
 aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager

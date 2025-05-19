@@ -1,3 +1,5 @@
 Flask==2.3.3
 pymongo==4.6.1
 python-dotenv==1.1.0
+# OTEL using LATEST version - auto-instrumentation for tracing
+aws-opentelemetry-distro

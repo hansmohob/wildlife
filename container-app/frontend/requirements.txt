@@ -1,3 +1,5 @@
 Flask==2.3.3
 python-dotenv==1.1.0
 requests==2.32.3
+# OTEL using LATEST version - auto-instrumentation for tracing
+aws-opentelemetry-distro
