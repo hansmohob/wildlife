@@ -82,6 +82,8 @@ aws ecs create-cluster \
     --settings name=containerInsights,value=enhanced \
     --no-cli-pager
 
+until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text | grep -q ACTIVE; do sleep 5; done
+
 aws ecs create-capacity-provider \
     --name REPLACE_PREFIX_CODE-capacity-ec2 \
     --auto-scaling-group-provider autoScalingGroupArn=$ASG_ARN,managedScaling='{status=ENABLED,targetCapacity=80}'
