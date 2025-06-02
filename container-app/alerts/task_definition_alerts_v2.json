@@ -12,7 +12,7 @@
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
     "containerDefinitions": [
         {
-            "name": "wildlife-alerlerts",
+            "name": "wildlife-alerts",
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest",
             "essential": true,
             "readonlyRootFilesystem": true,

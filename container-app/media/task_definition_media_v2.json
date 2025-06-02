@@ -13,7 +13,7 @@
     "containerDefinitions": [
         {
             "name": "wildlife-media",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecrecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest",
             "essential": true,
             "readonlyRootFilesystem": true,
             "portMappings": [
