@@ -24,6 +24,32 @@
                     "appProtocol": "http"
                 }
             ],
+            "environment": [
+                {
+                    "name": "OTEL_PYTHON_DISTRO",
+                    "value": "aws_distro"
+                },
+                {
+                    "name": "OTEL_PYTHON_CONFIGURATOR",
+                    "value": "aws_configurator"
+                },
+                {
+                    "name": "OTEL_SERVICE_NAME",
+                    "value": "wildlife-alerts"
+                },
+                {
+                    "name": "OTEL_TRACES_SAMPLER",
+                    "value": "xray"
+                },
+                {
+                    "name": "OTEL_TRACES_SAMPLER_ARG",
+                    "value": "endpoint=http://localhost:4317,polling_interval=60"
+                },
+                {
+                    "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+                    "value": "http://localhost:4317"
+                }
+            ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
@@ -43,7 +69,7 @@
             "image": "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3",
             "essential": true,
             "command": [
-                "--config=/etc/ecs/otel-instance-metrics-config.yaml"
+                "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
             ],
             "logConfiguration": {
                 "logDriver": "awslogs",
