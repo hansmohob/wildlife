@@ -1,8 +1,8 @@
 {
-    "family": "wildlife-alerts-task",
+    "family": "wildlife-dataapi-task",
     "requiresCompatibilities": ["FARGATE"],
-    "cpu": "1024",
-    "memory": "2048",
+    "cpu": "512",
+    "memory": "1024",
     "runtimePlatform": {
         "operatingSystemFamily": "LINUX",
         "cpuArchitecture": "ARM64"
@@ -12,16 +12,15 @@
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
     "containerDefinitions": [
         {
-            "name": "wildlife-alerts",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest",
+            "name": "wildlife-dataapi",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest",
             "essential": true,
-            "readonlyRootFilesystem": true,
+            "readonlyRootFilesystem": false,
             "portMappings": [
                 {
                     "containerPort": 5000,
                     "protocol": "tcp",
-                    "name": "alerts-http",
-                    "appProtocol": "http"
+                    "name": "data-http"
                 }
             ],
             "environment": [
@@ -34,7 +33,7 @@
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-alerts",
+                    "awslogs-group": "/aws/ecs/wildlife-dataapi",
                     "awslogs-region": "REPLACE_AWS_REGION",
                     "awslogs-stream-prefix": "ecs"
                 }

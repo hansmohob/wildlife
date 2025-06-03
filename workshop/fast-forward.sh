@@ -1,14 +1,16 @@
 ### START: 01 Create Image Registry (ECR) ###
+aws ecr create-repository --repository-name wildlife/alerts
+aws ecr create-repository --repository-name wildlife/datadb
+aws ecr create-repository --repository-name wildlife/dataapi
 aws ecr create-repository --repository-name wildlife/frontend 
 aws ecr create-repository --repository-name wildlife/media
-aws ecr create-repository --repository-name wildlife/data
-aws ecr create-repository --repository-name wildlife/alerts
 ### END: 01 Create Image Registry (ECR) ###
 
 ### START: 02 Build Container Image (ECR) ###
 cd /home/ec2-user/workspace/my-workspace/container-app && \
     docker build -t wildlife/alerts ./alerts && \
-    docker build -t wildlife/data ./data && \
+    docker build -t wildlife/datadb ./datadb && \
+    docker build -t wildlife/dataapi ./dataapi && \
     docker build -t wildlife/frontend ./frontend && \
     cp ../terraform/ignoreme.txt ./media/dockerfile && \
     docker build -t wildlife/media ./media && \
@@ -18,11 +20,13 @@ cd /home/ec2-user/workspace/my-workspace/container-app && \
 ### START: 03 Push Container Image (ECR) ###
 aws ecr get-login-password --region REPLACE_AWS_REGION | docker login --username AWS --password-stdin REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com
 docker tag wildlife/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
-docker tag wildlife/data REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest
+docker tag wildlife/datadb REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
+docker tag wildlife/dataapi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
 docker tag wildlife/frontend REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
 docker tag wildlife/media REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
 docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
-docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
+docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
 docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
 docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
 ### END: 03 Push Container Image (ECR) ###
@@ -101,15 +105,19 @@ aws ecs register-task-definition \
     --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/datadb/task_definition_datadb_v1.json \
     --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_v1.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v1.json \
     --no-cli-pager
 
 aws ecs register-task-definition \
     --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v1.json \
+    --no-cli-pager
+
+aws ecs register-task-definition \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
     --no-cli-pager
 ### END: 06 Create Task Definition (ECS) ###
 
@@ -144,12 +152,34 @@ aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80
 ### START: 08 Create Services (ECS) ###
 aws ecs create-service \
     --cluster REPLACE_PREFIX_CODE-ecs \
-    --service-name wildlife-data-service \
-    --task-definition wildlife-data-task \
+    --service-name wildlife-alerts-service \
+    --task-definition wildlife-alerts-task \
     --desired-count 2 \
     --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-data,clientAliases=[{port=27017}]}]" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}]" \
+    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
+    --no-cli-pager
+
+aws ecs create-service \
+    --cluster REPLACE_PREFIX_CODE-ecs \
+    --service-name wildlife-datadb-service \
+    --task-definition wildlife-datadb-task \
+    --desired-count 2 \
+    --launch-type FARGATE \
+    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-datadb,clientAliases=[{port=27017}]}]" \
+    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
+    --no-cli-pager
+
+aws ecs create-service \
+    --cluster REPLACE_PREFIX_CODE-ecs \
+    --service-name wildlife-dataapi-service \
+    --task-definition wildlife-dataapi-task \
+    --desired-count 2 \
+    --launch-type FARGATE \
+    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-dataapi,clientAliases=[{port=27017}]}]" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -162,17 +192,6 @@ aws ecs create-service \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}]" \
     --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" \
-    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
-    --no-cli-pager
-
-aws ecs create-service \
-    --cluster REPLACE_PREFIX_CODE-ecs \
-    --service-name wildlife-alerts-service \
-    --task-definition wildlife-alerts-task \
-    --desired-count 2 \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}]" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -197,10 +216,16 @@ aws ecs register-task-definition \
 aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment --no-cli-pager
 
 aws ecs register-task-definition \
-    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v2.json \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/datadb/task_definition_datadb_v3.json \
     --no-cli-pager
 
-aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
+aws ecs update-service --cluster wildlife-ecs --service wildlife-datadb-service --task-definition wildlife-datadb-task --force-new-deployment --no-cli-pager
+
+aws ecs register-task-definition \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v3.json \
+    --no-cli-pager
+
+aws ecs update-service --cluster wildlife-ecs --service wildlife-dataapi-service --task-definition wildlife-dataapi-task --force-new-deployment --no-cli-pager
 
 aws ecs register-task-definition \
     --cli-input-json file://$HOME/workspace/my-workspace/container-app/data/task_definition_data_v3.json \
@@ -213,6 +238,12 @@ aws ecs register-task-definition \
     --no-cli-pager
 
 aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
+
+aws ecs register-task-definition \
+    --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v2.json \
+    --no-cli-pager
+
+aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
 ### END: 09 Deploy AWS Distrubution for Open Telemetry (ADOT)###
 
 ### 10 Testing ###

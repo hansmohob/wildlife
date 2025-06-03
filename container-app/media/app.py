@@ -1,4 +1,4 @@
-# Media Service - Handles image upload, storage, and retrieval for wildlife sightihtings
+# Media Service - Handles image upload, storage, and retrieval for wildlife sightings
 
 from datetime import datetime
 from io import BytesIO
@@ -9,21 +9,49 @@ from flask import Flask, jsonify, send_file, request
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from pymongo import MongoClient
+import logging
+from aws_xray_sdk.core import xray_recorder, patch_all
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize X-Ray
+logger.info("Initializing X-Ray")
+xray_recorder.configure(
+    context_missing='LOG_ERROR',
+    service='wildlife-media'
+)
+patch_all()
+
+# Disable OTEL metrics export that's causing errors
+import os
+os.environ["OTEL_SDK_DISABLED"] = "true"
 
 app = Flask(__name__)
+logger.info("initializing xray middleware")
+# Add X-Ray middleware to Flask
+XRayMiddleware(app, xray_recorder)
 
 # Load environment variables
+logger.info("Loading environment variables")
 load_dotenv('media.env')
 
 # Get environment variables directly
 AWS_REGION = os.getenv('AWS_REGION')
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 
+logger.info(f"Using AWS_REGION: {AWS_REGION}")
+logger.info(f"Using BUCKET_NAME: {BUCKET_NAME}")
+
 # Initialize S3 client
+logger.info(f"Initializing S3 client for region {AWS_REGION}")
 s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Initialize MongoDB client
-mongo_client = MongoClient('mongodb://wildlife-data:27017')
+logger.info("Connecting to MongoDB")
+mongo_client = MongoClient('mongodb://wildlife-datadb.wildlife:27017')
 db = mongo_client.wildlife_db
 
 # Constants
@@ -32,6 +60,7 @@ ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
 def handle_image_upload(file):
     """Handle image upload to S3"""
     if not file.filename:
+        logger.warning("No filename provided")
         return None
     
     try:
@@ -39,27 +68,43 @@ def handle_image_upload(file):
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
         
+        logger.info(f"Uploading image to S3: {filename}")
         s3.upload_fileobj(
             file,
             BUCKET_NAME,
             filename,
             ExtraArgs={'ContentType': file.content_type}
         )
+        logger.info(f"Successfully uploaded image to S3: {filename}")
         return filename
     except Exception as e:
-        print(f"Error uploading image: {str(e)}")
+        logger.error(f"Error uploading image: {str(e)}")
         return None
+
+@app.route('/wildlife/health')
+def health_check():
+    logger.info("Health check requested")
+    return jsonify({
+        "status": "healthy",
+        "service": "media",
+        "xray": "enabled",
+        "bucket": BUCKET_NAME,
+        "region": AWS_REGION
+    }), 200
 
 @app.route('/wildlife/api/images/<path:image_key>')
 def get_image(image_key):
     # Validate image key
     if not image_key or '..' in image_key:
+        logger.warning(f"Invalid image key: {image_key}")
         return jsonify({"error": "Invalid image key"}), 400
 
     if not any(image_key.lower().endswith(ext) for ext in ALLOWED_IMAGE_EXTENSIONS):
+        logger.warning(f"Invalid file type: {image_key}")
         return jsonify({"error": "Invalid file type"}), 400
 
     try:
+        logger.info(f"Getting image from S3: {image_key}")
         response = s3.get_object(Bucket=BUCKET_NAME, Key=image_key)
         return send_file(
             BytesIO(response['Body'].read()),
@@ -69,17 +114,22 @@ def get_image(image_key):
     except ClientError as e:
         error_code = e.response.get('Error', {}).get('Code', 'Unknown')
         if error_code == 'NoSuchKey':
+            logger.warning(f"Image not found: {image_key}")
             return jsonify({"error": "Image not found"}), 404
+        logger.error(f"Failed to retrieve image: {str(e)}")
         return jsonify({"error": "Failed to retrieve image"}), 500
     except Exception as e:
+        logger.error(f"Internal server error: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/wildlife/api/sightings', methods=['POST'])
 def report_sighting():
     if not request.form:
+        logger.warning("No form data received")
         return jsonify({"error": "No form data received"}), 400
             
     try:
+        logger.info("Processing sighting report")
         data = request.form.to_dict()
         
         # Convert coordinates to float
@@ -88,6 +138,7 @@ def report_sighting():
                 try:
                     data[coord] = float(data[coord])
                 except ValueError:
+                    logger.warning(f"Invalid {coord}")
                     return jsonify({"error": f"Invalid {coord}"}), 400
         
         # Add timestamp
@@ -95,26 +146,31 @@ def report_sighting():
         
         # Handle image upload
         if 'image' in request.files:
+            logger.info("Processing image upload")
             image_url = handle_image_upload(request.files['image'])
             if image_url:
                 data['image_url'] = image_url
         
         # Store in MongoDB
+        logger.info("Storing sighting in MongoDB")
         db.sightings.insert_one(data)
         
         return jsonify({"message": "Sighting reported successfully"}), 200
 
     except Exception as e:
-        print(f"Error in report_sighting: {str(e)}")
+        logger.error(f"Error in report_sighting: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/wildlife/api/sightings', methods=['GET'])
 def get_sightings():
     try:
+        logger.info("Getting sightings from MongoDB")
         sightings = list(db.sightings.find({}, {'_id': False}))
         return jsonify(sightings), 200
     except Exception as e:
+        logger.error(f"Error getting sightings: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
+    logger.info("Starting media service")
     app.run(host='0.0.0.0', port=5000)

@@ -1,4 +1,4 @@
-# Frontend Service - Web interface for rangers to view and submit wildlife sightings
+# Data API Service - faciliates frontend access to data service
 
 # Python base image
 FROM python:3.12-slim
@@ -14,11 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
-COPY static ./static
-COPY templates ./templates
 
 # Expose port 5000 for Flask
 EXPOSE 5000
 
-# Run the application with OpenTelemetry instrumentation
+# Run the application
 CMD ["python", "app.py"]

@@ -1,8 +1,8 @@
 {
-    "family": "wildlife-data-task",
-    "requiresCompatibilities": ["FARGATE"],
-    "cpu": "1024",
-    "memory": "2048",
+    "family": "wildlife-datadb-task",
+    "requiresCompatibilities": ["EC2"],
+    "cpu": "512",
+    "memory": "1024",
     "runtimePlatform": {
         "operatingSystemFamily": "LINUX",
         "cpuArchitecture": "ARM64"
@@ -12,8 +12,8 @@
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
     "containerDefinitions": [
         {
-            "name": "wildlife-data",
-            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/data:latest",
+            "name": "wildlife-datadb",
+            "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest",
             "essential": true,
             "readonlyRootFilesystem": false,
             "portMappings": [
@@ -23,35 +23,61 @@
                     "name": "data-tcp"
                 }
             ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-create-group": "true",
-                    "awslogs-group": "/aws/ecs/wildlife-data",
-                    "awslogs-region": "REPLACE_AWS_REGION",
-                    "awslogs-stream-prefix": "ecs"
+            "environment": [
+                {
+                    "name": "AWS_XRAY_DAEMON_ADDRESS",
+                    "value": "localhost:2000"
                 }
-            },
-            "dependsOn": [{
-                "containerName": "aws-otel-collector",
-                "condition": "START"
-            }]
-        },
-        {
-            "name": "aws-otel-collector",
-            "image": "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3",
-            "essential": true,
-            "command": [
-                "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "mongodb-data",
+                    "containerPath": "/data/db",
+                    "readOnly": false
+                }
             ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-create-group": "true",
-                    "awslogs-group": "/ecs/ecs-aws-otel-sidecar-collector",
+                    "awslogs-group": "/aws/ecs/wildlife-datadb",
                     "awslogs-region": "REPLACE_AWS_REGION",
                     "awslogs-stream-prefix": "ecs"
                 }
+            },
+            "dependsOn": [{
+                "containerName": "aws-xray-daemon",
+                "condition": "START"
+            }]
+        },
+        {
+            "name": "aws-xray-daemon",
+            "image": "public.ecr.aws/xray/aws-xray-daemon:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 2000,
+                    "protocol": "udp"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/aws/ecs/xray-daemon",
+                    "awslogs-region": "REPLACE_AWS_REGION",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ],
+    "volumes": [
+        {
+            "name": "mongodb-data",
+            "dockerVolumeConfiguration": {
+                "scope": "shared",
+                "autoprovision": true,
+                "driver": "local"
             }
         }
     ]
