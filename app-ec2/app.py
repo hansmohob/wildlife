@@ -71,6 +71,7 @@ def handle_image_upload(file):
         print(f"Error uploading image: {str(e)}")
         return None
 
+# Main application routes
 @app.route('/wildlife')
 def wildlife_root():
     return redirect('/wildlife/')
@@ -170,5 +171,33 @@ def get_gps_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Data API routes
+@app.route('/wildlife/api/data/health')
+def data_health_check():
+    return jsonify({
+        "status": "healthy",
+        "service": "data-api"
+    }), 200
+
+@app.route('/wildlife/api/data/sightings', methods=['GET'])
+def data_get_sightings():
+    try:
+        sightings = list(db.sightings.find({}, {'_id': False}))
+        return jsonify(sightings), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/wildlife/api/data/sightings/<sighting_id>', methods=['GET'])
+def data_get_sighting(sighting_id):
+    try:
+        sighting = db.sightings.find_one({"id": sighting_id}, {'_id': False})
+        if sighting:
+            return jsonify(sighting), 200
+        else:
+            return jsonify({"error": "Sighting not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
+    print("Starting wildlife application with integrated data API on port 5000")
     app.run(host='0.0.0.0', port=5000, debug=True)
