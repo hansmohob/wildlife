@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.info("Initializing X-Ray")
 xray_recorder.configure(
     context_missing='LOG_ERROR',
-    service='wildlife-data'
+    service='wildlife-dataapi'
 )
 patch_all()
 
@@ -30,7 +30,7 @@ XRayMiddleware(app, xray_recorder)
 
 # Initialize MongoDB client
 logger.info("Starting MongoDB")
-client = MongoClient('mongodb://wildlife-data.wildlife:27017')
+client = MongoClient('mongodb://wildlife-datadb.wildlife:27017')
 db = client.wildlife_db
 
 @app.route('/wildlife/health')
@@ -38,7 +38,7 @@ def health_check():
     logger.info("Health check requested")
     return jsonify({
         "status": "healthy",
-        "service": "data"
+        "service": "dataapi"
     }), 200
 
 @app.route('/wildlife/api/sightings', methods=['GET'])
@@ -65,5 +65,5 @@ def get_sighting(sighting_id):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    logger.info("Starting data service")
+    logger.info("Starting dataapi service")
     app.run(host='0.0.0.0', port=5000)

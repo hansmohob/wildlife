@@ -85,7 +85,7 @@ def report_sighting():
 def get_sightings():
     try:
         logger.info("Getting sightings")
-        response = requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings')
+        response = requests.get('http://wildlife-media.wildlife:5000/wildlife/api/sightings')
         return response.content, response.status_code, response.headers.items()
     except Exception as e:
         logger.error(f"Error getting sightings: {str(e)}")

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: AWS 102 Workshop environment setup - Creates EC2 instance with code-server and wildlife application for containerization
+Description: Sample browser-based development environment with VS Code, S3-backed git storage, and secure CloudFront access
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -12,8 +12,11 @@ Metadata:
         Parameters:
           - CodeServerVersion
           - GitHubRepo
+          - S3AssetBucket
+          - S3AssetPrefix
           - DeployPipeline
           - RotateSecret
+          - AutoSetDeveloperProfile
       - Label:
           default: Compute settings
         Parameters:
@@ -36,6 +39,14 @@ Parameters:
     Type: String
     Default: https://github.com/hansmohob/wildlife.git
     Description: GitHub repository URL to clone as initial workspace content for code-server
+  S3AssetBucket:
+    Type: String
+    Default: ""
+    Description: (Optional) S3 path for initial workspace content in format 'my-bucket-name'. If provided, this OVERWRITES GitHubRepo parameter.
+  S3AssetPrefix:
+    Type: String
+    Default: ""
+    Description: (Optional) Asset prefix path. Only required when S3AssetBucket is specified. Must end in '/' e.g. 'assets/' or 'assets/solution/'
   DeployPipeline:
     Type: String
     Default: true
@@ -50,9 +61,16 @@ Parameters:
       - true
       - false
     Description: Rotate code-server secret every 30 days.
+  AutoSetDeveloperProfile:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: Automatically set Developer profile as default in code-server terminal sessions without requiring elevation
   CodeServerVersion:
     Type: String
-    Default: "4.97.2"
+    Default: "4.99.3"
     Description: Version of code-server to install. See available versions at github.com/coder/code-server/releases
   InstanceArchitecture:
     Type: String
@@ -75,15 +93,15 @@ Parameters:
     Description: SSM parameter path for arm64 AMI (used for Graviton instances)
   PrefixCode:
     Type: String
-    Default: wild
-    Description: Resource naming prefix for uniqueness and organization. Must be lowercase alphanumeric and cannot start with 'aws'
+    Default: wildlife
+    Description: Resource naming prefix for uniqueness and organization. Six characters or less. Must be lowercase alphanumeric and cannot start with 'aws'
   EnvironmentTag:
     Type: String
     Default: production
     Description: Environment identifier for resource tagging e.g. dev, prod
   SolutionTag:
     Type: String
-    Default: SecureDeveloperEnvironment
+    Default: SampleDeveloperEnvironment
     Description: Solution identifier for resource tagging and grouping. Use alphanumeric characters only
 
 ### Region to CloudFront Prefix List mapping - delete regions not required for deployment
@@ -146,13 +164,15 @@ Conditions:
   CreatePipeline: !Equals [!Ref DeployPipeline, "true"]
   EnableRotation: !Equals [!Ref RotateSecret, "true"]
   IsArm64: !Equals [!Ref InstanceArchitecture, 'arm64']
+  HasS3Assets: !Not [!Equals [!Ref S3AssetBucket, ""]]
+
 
 Resources:
   ### Resource Group - Groups all AWS resources for easy management and tracking
   resourcegroup:
     Type: AWS::ResourceGroups::Group
     Properties:
-      Description: Secure Development Environment Resources
+      Description: Sample Developer Environment Resources
       Name: !Sub ${PrefixCode}-resources
       ResourceQuery:
         Type: TAG_FILTERS_1_0
@@ -224,7 +244,7 @@ Resources:
       AliasName: !Sub alias/${PrefixCode}-kms-cmk
       TargetKeyId: !Ref kmskey
 
-  ### Network Infrastructure - VPC with public/private subnets and flow logs for secure environment
+  ### Network Infrastructure - VPC with public/private subnets and flow logs for developer environment
   vpc01:
     Type: AWS::EC2::VPC
     Properties:
@@ -278,7 +298,7 @@ Resources:
                     "aws:SourceArn": !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:*"
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-iampolicy-VpcFlowLogsPermissions
+          Value: !Sub ${PrefixCode}-iamrole-VpcFlowLogs
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -675,7 +695,7 @@ Resources:
   albtargetgroupcodeserver:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckPath: /
+      HealthCheckPath: /login
       HealthCheckPort: 8080
       Name: !Sub ${PrefixCode}-targetgroup-codeserver
       Port: 8080
@@ -907,12 +927,12 @@ Resources:
   securitygroupcodeserver:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub ${PrefixCode}-securitygroup-codeserver
+      GroupName: !Sub ${PrefixCode}-securitygroup-app
       GroupDescription: code-server security group
       VpcId: !Ref vpc01
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-securitygroup-codeserver
+          Value: !Sub ${PrefixCode}-securitygroup-app
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -929,7 +949,7 @@ Resources:
       FromPort: 8080
       ToPort: 8080
       SourceSecurityGroupId: !Ref securitygroupalb
-      Description: Allow inbound from ALB
+      Description: Allow inbound from ALB to codeserver
 
   ### Authentication - Secrets Manager storing credentials for code-server access and CloudFront origin verification
   secretcodeserver:
@@ -1039,6 +1059,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - ec2:DescribeInstances
+                  - ec2:DescribeTags
                 Resource: "*"
                 Condition:
                   StringEquals:
@@ -1060,12 +1081,12 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - logs:DescribeLogStreams
                 Resource:
-                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ec2/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/code-server/${PrefixCode}
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/code-server/${PrefixCode}:*
         - PolicyName: !Sub ${PrefixCode}-iampolicy-codeserver-KMS
           PolicyDocument:
             Version: 2012-10-17
@@ -1100,6 +1121,14 @@ Resources:
               - Effect: Allow
                 Action: s3:ListBucket
                 Resource: !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-codeserver-SSM
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PrefixCode}/config/AmazonCloudWatch-linux
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-iamrole-codeserver
@@ -1138,6 +1167,50 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+  ec2loggroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/code-server/${PrefixCode}
+      RetentionInDays: 14
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-ec2loggroup
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: monitoring
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+  ssmparametercloudwatchlinux:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${PrefixCode}/config/AmazonCloudWatch-linux
+      Type: String
+      Value: !Sub |
+        {
+          "logs": {
+            "logs_collected": {
+              "files": {
+                "collect_list": [
+                  {
+                    "file_path": "/var/log/cloud-init-output.log",
+                    "log_group_name": "/aws/code-server/${PrefixCode}",
+                    "log_stream_name": "setup"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      Description: CloudWatch Agent configuration for linux instances
+      Tags:
+        Name: !Sub ${PrefixCode}-ssm-cloudwatch-linux
+        provisioner: CFN
+        solution: !Sub ${SolutionTag}
+        resourcetype: monitoring
+        environment: !Sub ${EnvironmentTag}
   ec2codeserver:
     Type: AWS::EC2::Instance
     Properties:
@@ -1147,11 +1220,11 @@ Resources:
       SubnetId: !Ref subnetprivate01
       IamInstanceProfile: !Ref iaminstanceprofilecodeserver
       Monitoring: true
-      PrivateIpAddress: !Sub ${VpcCidr}.3.101
+      PrivateIpAddress: !Sub ${VpcCidr}.3.100
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
-            # Consider setting DeleteOnTermination to false in production environments
+            # Consider setting DeleteOnTermination to false in your own environments
             DeleteOnTermination: true
             Encrypted: true
             KmsKeyId: alias/aws/ebs
@@ -1175,7 +1248,15 @@ Resources:
           dnf install amazon-cloudwatch-agent -y -q
 
           echo "INFO: Configuring CloudWatch agent..."
-          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:/AmazonCloudWatch-linux -c default
+          until aws ssm get-parameter --name /${PrefixCode}/config/AmazonCloudWatch-linux --region ${AWS::Region} &> /dev/null; do
+            echo "INFO: SSM parameter is not ready..."
+            sleep 5
+          done
+          aws ssm get-parameter --name /${PrefixCode}/config/AmazonCloudWatch-linux --region ${AWS::Region} --query "Parameter.Value" --output text > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+          echo "INFO: Installing Session Manager plugin..."
+          dnf install -y https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_$([ "${InstanceArchitecture}" = "arm64" ] && echo "arm64" || echo "64bit")/session-manager-plugin.rpm
 
           echo "INFO: Creating AWS profile for developer role..."
           su - ec2-user -c "mkdir -p ~/.aws"
@@ -1243,6 +1324,9 @@ Resources:
 
           echo "INFO: Installing Docker..."
           dnf install -y docker
+          systemctl start docker
+          systemctl enable docker
+          usermod -aG docker ec2-user
 
           echo "INFO: Installing extensions..."
           su - ec2-user -c "code-server --install-extension amazonwebservices.amazon-q-vscode --force"
@@ -1267,13 +1351,58 @@ Resources:
           su - ec2-user -c "git config --global user.name 'EC2 User'"
           su - ec2-user -c "git config --global user.email 'ec2-user@example.com'"
           su - ec2-user -c "git config --global init.defaultBranch main"
-          su - ec2-user -c "cd /home/ec2-user/workspace && \
-                            git clone ${GitHubRepo} my-workspace && \
-                            cd my-workspace && \
-                            git remote remove origin && \
-                            git remote add origin s3+zip://${s3bucketgit}/my-workspace && \
-                            git push -u origin main"
+
+          # Initialize from either S3 or GitHub
+          if [ -n "${S3AssetBucket}" ]; then
+            echo "INFO: Initializing from S3 assets..."
+            su - ec2-user -c "mkdir -p /home/ec2-user/workspace/my-workspace && \
+                              cd /home/ec2-user/workspace/my-workspace && \
+                              aws s3 cp --recursive s3://${S3AssetBucket}/${S3AssetPrefix} ./ && \
+                              git init && \
+                              git add . && \
+                              git commit -m 'Initial commit from S3 assets' && \
+                              git remote add origin s3+zip://${s3bucketgit}/my-workspace && \
+                              git push -u origin main"
+          else
+            echo "INFO: Cloning from GitHub..."
+            su - ec2-user -c "cd /home/ec2-user/workspace && \
+                              git clone ${GitHubRepo} my-workspace && \
+                              cd my-workspace && \
+                              git remote remove origin && \
+                              git remote add origin s3+zip://${s3bucketgit}/my-workspace && \
+                              git push -u origin main"
+          fi
           #### END: GIT-REMOTE-S3 BOOTSTRAP ####
+
+          #### START: SET DEVELOPER PROFILE AS DEFAULT ####
+          if [ "${AutoSetDeveloperProfile}" = "true" ]; then
+            echo "INFO: Setting up AWS profile defaults..."
+            su - ec2-user -c "echo 'export AWS_PROFILE=developer' >> ~/.bashrc"
+            su - ec2-user -c "echo 'export AWS_REGION=${AWS::Region}' >> ~/.bashrc"
+            su - ec2-user -c "echo 'export AWS_ACCOUNTID=${AWS::AccountId}' >> ~/.bashrc"
+          else
+            echo "INFO: Skipping AWS profile defaults..."
+          fi
+          #### END: SET DEVELOPER PROFILE AS DEFAULT ####
+
+          #### START: AMAZON Q CLI ####
+          echo "INFO: Installing Q-Developer CLI..."
+          su - ec2-user -c "curl --proto '=https' --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-$([ "${InstanceArchitecture}" = "arm64" ] && echo "aarch64" || echo "x86_64")-linux.zip -o q.zip"
+          su - ec2-user -c "unzip q.zip"
+          #TODO: Sort this bit - need IAM IDC before issuing this command
+          # su - ec2-user -c "./q/install.sh"
+
+          echo "INFO: Configuring Q-Developer CLI MCP for workspace..."
+          # Install Python 3.13
+          pip3 install uv
+          uv python install 3.13
+          
+          # Install uvenv and MCP servers
+          pip3 install uvenv
+          uvenv install --python 3.13 awslabs.terraform-mcp-server
+          uvenv install --python 3.13 awslabs.ecs-mcp-server
+          uvenv install --python 3.13 awslabs.eks-mcp-server
+          #### END: AMAZON Q CLI ####
 
           #### START: WILDLIFE APPLICATION ####
           echo "INFO: Installing MongoDB..."
@@ -1316,12 +1445,33 @@ Resources:
           systemctl start wildlife-app
           #### END: WILDLIFE APPLICATION ####
 
-          #### START: AWS102 WORKSHOP BOOTSTRAP ####
-          sed -i "s/\${PREFIX_CODE}/${PrefixCode}/g" /home/ec2-user/workspace/my-workspace/container-appwildlife.env
-          sed -i "s/\${AWS_ACCOUNT_ID}/${AWS::AccountId}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
-          sed -i "s/\${BUCKET_NAME}/${s3bucketwildlife}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
-          sed -i "s/\${AWS_REGION}/${AWS::Region}/g" /home/ec2-user/workspace/my-workspace/container-app/wildlife.env
-          #### END: AWS102 WORKSHOP BOOTSTRAP ####
+          #### START: WORKSHOP BOOTSTRAP ####
+          echo "INFO: Replacing environment variables in configuration files"
+          perl -i -pe "BEGIN{undef $/;} \
+              s/REPLACE_AWS_ACCOUNT_ID/${AWS::AccountId}/g; \
+              s/REPLACE_AWS_REGION/${AWS::Region}/g; \
+              s/REPLACE_PREFIX_CODE/${PrefixCode}/g; \
+              s/REPLACE_VPC_ID/${vpc01}/g; \
+              s/REPLACE_PRIVATE_SUBNET_1/${subnetprivate01}/g; \
+              s/REPLACE_PRIVATE_SUBNET_2/${subnetprivate02}/g; \
+              s/REPLACE_PUBLIC_SUBNET_1/${subnetpublic01}/g; \
+              s/REPLACE_PUBLIC_SUBNET_2/${subnetpublic02}/g; \
+              s/REPLACE_SECURITY_GROUP_APP/${securitygroupcodeserver}/g; \
+              s/REPLACE_SECURITY_GROUP_ALB/${securitygroupalb}/g; \
+              s/REPLACE_BUCKET_NAME/${s3bucketwildlife}/g" \
+              $(find /home/ec2-user/workspace/my-workspace \
+                  -name "task_definition_*.json" -o \
+                  -name "fast-forward.sh" -o \
+                  -name "media.env")
+
+          echo "INFO: Commiting file changes"
+          su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m 'Update env' && git push origin main"
+
+          echo "INFO: Installing k6 pinned version..."
+          curl -sLO "https://github.com/grafana/k6/releases/download/v0.57.0/k6-v0.57.0-linux-${InstanceArchitecture}.tar.gz"
+          tar -xzf k6-v0.57.0-linux-${InstanceArchitecture}.tar.gz -C /tmp
+          install -o root -g root -m 0755 /tmp/k6-v0.57.0-linux-${InstanceArchitecture}/k6 /usr/local/bin/k6
+          #### END: WORKSHOP BOOTSTRAP ####
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-ec2-codeserver
@@ -1354,6 +1504,17 @@ Resources:
               AWS: !GetAtt iamrolecodeserver.Arn
             Action: sts:AssumeRole
       Policies:
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-gitpush-KMS
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt kmskey.Arn
         - PolicyName: !Sub ${PrefixCode}-iampolicy-terraform-kms-key
           PolicyDocument:
             Version: 2012-10-17
@@ -1390,7 +1551,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:ListAllBy
+                  - s3:ListAllMyBuckets
                 Resource: 
                   - "*"
               - Effect: Allow
@@ -1442,7 +1603,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - ec2:DescribeDhcpOptions
-                  - ec2:DescribeInstances #test aws cli commands
+                  - ec2:DescribeInstances # test aws cli commands
                   - ec2:DescribeNetworkInterfaces
                   - ec2:DescribeSubnets
                   - ec2:DescribeSecurityGroups
@@ -1483,6 +1644,26 @@ Resources:
             Resource: !GetAtt iamroledeveloper.Arn
       Roles:
         - !Ref iamrolecodeserver
+  # Policy allowing code-server to copy files from source S3 bucket for workspace initialization
+  iampolicyS3Assets:
+    Type: AWS::IAM::RolePolicy
+    Condition: HasS3Assets
+    Properties:
+      RoleName: !Ref iamrolecodeserver
+      PolicyName: !Sub ${PrefixCode}-iampolicy-s3-assets
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${S3AssetBucket}
+              - !Sub arn:${AWS::Partition}:s3:::${S3AssetBucket}/${S3AssetPrefix}*
 
   ### CI/CD - CodeBuild and CodePipeline for automated infrastructure deployment via Terraform
   # S3 bucket for codepipeline artifacts AND TERRAFORM STATE!
@@ -1605,7 +1786,7 @@ Resources:
             pre_build:
               commands:
                 # Initialize Terraform using shared pipeline/state bucket
-                - cd TF
+                - cd terraform
                 - terraform init -backend-config="bucket=${s3bucketartifact}" -backend-config="region=${AWS::Region}"
             build:
               commands:
@@ -1668,7 +1849,7 @@ Resources:
             pre_build:
               commands:
                 # Initialize Terraform using shared pipeline/state bucket
-                - cd TF
+                - cd terraform
                 - terraform init -backend-config="bucket=${s3bucketartifact}" -backend-config="region=${AWS::Region}"
             build:
               commands:
@@ -2226,7 +2407,7 @@ Resources:
     Type: AWS::IAM::Policy
     Condition: EnableRotation
     Properties:
-      PolicyName: !Sub ${PrefixCode}-policy-rotation-secret-access
+      PolicyName: !Sub ${PrefixCode}-iampolicy-rotation-secret-access
       Roles:
         - !Ref iamrolelambda
       PolicyDocument:
@@ -2280,8 +2461,153 @@ Resources:
               - "Resource::arn:<AWS::Partition>:ssm:<AWS::Region>:*:document/AWS-RunShellScript"
             reason: "Lambda requires CloudWatch Logs access and SSM RunShellScript document permissions. GetRandomPassword requires * resource."
 
-### AWS102 Workshop resources
-  # S3 Bucket for images
+### Workshop pre-created resources
+
+  # Additional IAM policies for developer role
+  iampolicywildlifeecr:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref iamrolecodeserver
+      PolicyName: !Sub ${PrefixCode}-iampolicy-ecr
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetRepositoryPolicy
+              - ecr:DescribeImages
+              - ecr:ListImages
+              - ecr:PutImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/wildlife*
+          - Effect: Allow
+            Action: 
+              - ecr:DescribeRepositories
+              - ecr:GetAuthorizationToken
+            Resource: "*"
+
+  # ECS Task Execution role
+  iamroleecstaskexecution:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${PrefixCode}-iamrole-ecstaskexecution
+      Description: ECS task execution role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-ecr
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # https://docs.aws.amazon.com/AmazonECR/latest/userguide/security_iam_id-based-policy-examples.html
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html#task-execution-ecr-conditionkeys
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    aws:sourceVpce: "vpce-*"
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-logs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/instance_IAM_role.html#cwl_iam_policy
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: arn:aws:logs:*:*:*
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-iamrole-ecstaskexecution
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: security
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+
+  iamroleecstask:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${PrefixCode}-iamrole-ecstask-standard
+      Description: ECS task role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-ecsexec
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-xray
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                  - xray:GetSamplingStatisticSummaries
+                Resource: "*"
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-s3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-iamrole-ecstask-standard
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: security
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+
+  # S3 Bucket for wildlife images
   s3bucketwildlife:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -2333,7 +2659,7 @@ Resources:
     Type: AWS::IAM::RolePolicy
     Properties:
       RoleName: !Ref iamrolecodeserver
-      PolicyName: !Sub ${PrefixCode}-iampolicy-wildlife-s3
+      PolicyName: !Sub ${PrefixCode}-iampolicy-s3
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -2349,13 +2675,135 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
 
+  # Additional VPC configuration
+  subnetprivate02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc01
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Sub ${VpcCidr}.4.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-subnet-private02-AvailabilityZone02
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: network
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+  elasticip02:
+    Type: AWS::EC2::EIP
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-eip-AvailabilityZone02
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: network
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+  natgateway02:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt elasticip02.AllocationId
+      SubnetId: !Ref subnetpublic02
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-nat-public02-AvailabilityZone02
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: network
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+    DependsOn: internetgateway
+  routetableprivate02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref vpc01
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-routetable-private2-AvailabilityZone2
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: network
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+  routeprivate02:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routetableprivate02
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !GetAtt natgateway02.NatGatewayId
+  routeassociationprivate02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetprivate02
+      RouteTableId: !Ref routetableprivate02
+
+  # VPC endpoint for Amazon S3 buckets
+  s3endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - s3:ListObjectsV2
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}/*
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
+              - !Sub arn:${AWS::Partition}:s3:::al2023-repos-*
+              - !Sub arn:${AWS::Partition}:s3:::al2023-repos-*/*
+              - !Sub arn:${AWS::Partition}:s3:::amazonlinux-2023-*
+              - !Sub arn:${AWS::Partition}:s3:::amazonlinux-2023-*/*
+              - !Sub arn:${AWS::Partition}:s3:::prod-${AWS::Region}-starport-layer-bucket/* # For ECR over VPC Endpoint
+      RouteTableIds:
+        - !Ref routetableprivate
+        - !Ref routetableprivate02 
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcId: !Ref vpc01
+      VpcEndpointType: Gateway
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-endpoint-s3
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: network
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+
   # Access Layer - ALB target group and listener for access to wildlife app
   albtargetgroupwildlife:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckPath: /wildlife
+      HealthCheckPath: /wildlife/
       HealthCheckPort: 5000
-      Name: !Sub ${PrefixCode}-targetgroup-wildlife
+      Name: !Sub ${PrefixCode}-targetgroup-ec2
       Port: 5000
       Protocol: HTTP
       TargetType: instance
@@ -2364,7 +2812,7 @@ Resources:
       VpcId: !Ref vpc01
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-targetgroup-wildlife
+          Value: !Sub ${PrefixCode}-targetgroup-ec2
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -2393,28 +2841,107 @@ Resources:
   securitygrouprulewildlifeec2:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      Description: Inbound from ALB
       GroupId: !Ref securitygroupcodeserver
       IpProtocol: tcp
       FromPort: 5000
       ToPort: 5000
+      SourceSecurityGroupId: !Ref securitygroupalb
+      Description: Allow inbound from ALB to Wildlife App
+  securitygrouprulewildlifeecr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Inbound from ECR over VPC Endpoint
+      GroupId: !Ref securitygroupcodeserver
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
       CidrIp: !Sub ${VpcCidr}.0.0/16
   securitygrouprulewildlifealb:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
-      Description: Allow to EC2
+      Description: Allow ALB to forward traffic to Wildlife App containers
       GroupId: !Ref securitygroupalb
       IpProtocol: tcp
       FromPort: 5000
       ToPort: 5000
       DestinationSecurityGroupId: !Ref securitygroupcodeserver
 
-  # Data Generation Lambda Functions
+  # Seed container workload security group rules
+  securitygrouprulewildlifeself:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow all traffic between resources in the same security group
+      GroupId: !Ref securitygroupcodeserver
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref securitygroupcodeserver
+  securitygrouprulewildlifemongodb:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Allow MongoDB access within security group
+      GroupId: !Ref securitygroupcodeserver
+      IpProtocol: tcp
+      FromPort: 27017
+      ToPort: 27017
+      SourceSecurityGroupId: !Ref securitygroupcodeserver
+
+  # IAM Role for ECS Container Instances
+  iamroleecs:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${PrefixCode}-iamrole-ecs
+      Description: ECS Container Instance Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}-iampolicy-ecs-CloudWatch
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*:*
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-iamrole-ecs
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: security
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+
+  # Instance Profile for ECS Container Instances
+  iaminstanceprofileecs:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub ${PrefixCode}-iamprofile-ecs
+      Roles:
+        - !Ref iamroleecs
+
+  # Data Generation Lambda Function
   lambdagpswildlife:
     Type: AWS::Lambda::Function
     Properties:
       Description: Lambda function to generate GPS data
-      FunctionName: !Sub ${PrefixCode}-lambda-gps-wildlife
+      FunctionName: !Sub ${PrefixCode}-lambda-gps
       Handler: index.lambda_handler
       KmsKeyArn: !GetAtt kmskey.Arn
       Runtime: python3.12
@@ -2450,7 +2977,7 @@ Resources:
                   {"id": "AF001", "species": "African Lion", "base_lat": -20.2684, "base_lon": 57.4619},         # Black River Gorges
                   {"id": "AF002", "species": "African Elephant", "base_lat": -20.3189, "base_lon": 57.4397},     # Le Morne
                   {"id": "AF003", "species": "Black Rhino", "base_lat": -20.3758, "base_lon": 57.5636},          # Bel Ombre
-                  {"id": "AF004", "species": "Giraffe", "base_lat": -20.2198, "base_lon": 57.4716},           # Chamarel
+                  {"id": "AF004", "species": "Giraffe", "base_lat": -20.2198, "base_lon": 57.4716},              # Chamarel
                   {"id": "AF005", "species": "Cheetah", "base_lat": -20.3487, "base_lon": 57.5903},              # Grand Port
                   {"id": "AF006", "species": "Zebra", "base_lat": -20.2684, "base_lon": 57.4519},                # Black River
                   {"id": "AF007", "species": "Hippopotamus", "base_lat": -20.2389, "base_lon": 57.4716},         # Tamarin
@@ -2509,7 +3036,7 @@ Resources:
               }
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-lambda-gps-wildlife
+          Value: !Sub ${PrefixCode}-lambda-gps
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -2521,7 +3048,8 @@ Resources:
   iamrolelambdagpswildlife:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${PrefixCode}-role-wildlife-gps
+      RoleName: !Sub ${PrefixCode}-iamrole-gps
+      Description: Lambda permissions for wildlife alerts function
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -2531,7 +3059,7 @@ Resources:
             Action: sts:AssumeRole
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-role-wildlife-gps
+          Value: !Sub ${PrefixCode}-iamrole-gps
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -2543,7 +3071,7 @@ Resources:
   iamrolepolicylambdawildlife:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: !Sub ${PrefixCode}-policy-wildlife-gps
+      PolicyName: !Sub ${PrefixCode}-iampolicy-gps
       Roles:
         - !Ref iamrolelambdagpswildlife
       PolicyDocument:
@@ -2555,7 +3083,7 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${PrefixCode}-lambda-wildlife-gps:*
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${PrefixCode}-lambda-gps:*
           - Effect: Allow
             Action:
               - execute-api:Invoke
@@ -2569,7 +3097,7 @@ Resources:
   eventbridgerulegpswildlife:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub ${PrefixCode}-wildlife-gps-trigger
+      Name: !Sub ${PrefixCode}-gps-trigger
       Description: Triggers wildlife GPS data generator every minute
       ScheduleExpression: rate(1 minute)
       State: ENABLED
@@ -2583,6 +3111,46 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt eventbridgerulegpswildlife.Arn
+  iamrolepolicyworkshopdeveloper:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${PrefixCode}-iampolicy-workshopdeveloper
+      Roles:
+        - !Ref iamroledeveloper
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        # SORT THIS OUT
+          - Effect: Allow
+            Action:
+              - "*"
+            Resource:
+              - "*"
+  # Open Telemetry configuration 
+  iamrolepolicyecsotel:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref iamrolecodeserver
+      PolicyName: !Sub ${PrefixCode}-iampolicy-ecs-otel
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+              - logs:PutRetentionPolicy
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+              - xray:GetSamplingRules
+              - xray:GetSamplingTargets
+              - xray:GetSamplingStatisticSummaries
+              - ssm:GetParameters
+            Resource:
+              - "*"
 Outputs:
   01CodeServerURL:
     Description: URL to access code-server through CloudFront. Open in a separate tab and then return to collect password below!

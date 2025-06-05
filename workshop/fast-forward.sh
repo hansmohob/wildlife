@@ -166,9 +166,10 @@ aws ecs create-service \
     --service-name wildlife-datadb-service \
     --task-definition wildlife-datadb-task \
     --desired-count 2 \
-    --launch-type FARGATE \
+    --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-datadb,clientAliases=[{port=27017}]}]" \
+    --placement-constraints "type=distinctInstance" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -179,7 +180,7 @@ aws ecs create-service \
     --desired-count 2 \
     --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-dataapi,clientAliases=[{port=27017}]}]" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-http,discoveryName=wildlife-dataapi,clientAliases=[{port=5000}]}]" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -200,10 +201,9 @@ aws ecs create-service \
     --service-name wildlife-media-service \
     --task-definition wildlife-media-task \
     --desired-count 2 \
-    --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+    --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}]" \
-    --placement-constraints "type=distinctInstance" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 ### END: 08 Create Services (ECS) ###

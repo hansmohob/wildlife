@@ -64,16 +64,24 @@ def handle_image_upload(file):
         return None
     
     try:
-        file_extension = os.path.splitext(file.filename)[1]
+        # For files with no extension (like 'image' from form)
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        if not file_extension and file.filename == 'image':
+            file_extension = '.jpg'
+            
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         filename = f"sightings/{datetime.now().strftime('%Y%m%d')}/{unique_filename}"
         
         logger.info(f"Uploading image to S3: {filename}")
+        
+        # Ensure content_type is not None
+        content_type = getattr(file, 'content_type', None) or 'image/jpeg'
+        
         s3.upload_fileobj(
             file,
             BUCKET_NAME,
             filename,
-            ExtraArgs={'ContentType': file.content_type}
+            ExtraArgs={'ContentType': content_type}
         )
         logger.info(f"Successfully uploaded image to S3: {filename}")
         return filename
@@ -99,7 +107,14 @@ def get_image(image_key):
         logger.warning(f"Invalid image key: {image_key}")
         return jsonify({"error": "Invalid image key"}), 400
 
-    if not any(image_key.lower().endswith(ext) for ext in ALLOWED_IMAGE_EXTENSIONS):
+    # Check if the image key has a valid extension
+    has_valid_ext = False
+    for ext in ALLOWED_IMAGE_EXTENSIONS:
+        if image_key.lower().endswith(ext):
+            has_valid_ext = True
+            break
+            
+    if not has_valid_ext:
         logger.warning(f"Invalid file type: {image_key}")
         return jsonify({"error": "Invalid file type"}), 400
 
@@ -150,6 +165,7 @@ def report_sighting():
             image_url = handle_image_upload(request.files['image'])
             if image_url:
                 data['image_url'] = image_url
+                logger.info(f"Image URL set to: {image_url}")
         
         # Store in MongoDB
         logger.info("Storing sighting in MongoDB")
