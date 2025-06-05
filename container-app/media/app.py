@@ -7,7 +7,6 @@ import uuid
 import boto3
 from flask import Flask, jsonify, send_file, request
 from botocore.exceptions import ClientError
-from dotenv import load_dotenv
 from pymongo import MongoClient
 import logging
 from aws_xray_sdk.core import xray_recorder, patch_all
@@ -35,10 +34,7 @@ logger.info("initializing xray middleware")
 XRayMiddleware(app, xray_recorder)
 
 # Load environment variables
-logger.info("Loading environment variables")
-load_dotenv('media.env')
-
-# Get environment variables directly
+logger.info("Getting environment variables from task definition")
 AWS_REGION = os.getenv('AWS_REGION')
 BUCKET_NAME = os.getenv('BUCKET_NAME')
 

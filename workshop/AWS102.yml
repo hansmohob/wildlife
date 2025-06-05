@@ -1458,11 +1458,9 @@ Resources:
               s/REPLACE_PUBLIC_SUBNET_2/${subnetpublic02}/g; \
               s/REPLACE_SECURITY_GROUP_APP/${securitygroupcodeserver}/g; \
               s/REPLACE_SECURITY_GROUP_ALB/${securitygroupalb}/g; \
-              s/REPLACE_BUCKET_NAME/${s3bucketwildlife}/g" \
               $(find /home/ec2-user/workspace/my-workspace \
                   -name "task_definition_*.json" -o \
-                  -name "fast-forward.sh" -o \
-                  -name "media.env")
+                  -name "fast-forward.sh")
 
           echo "INFO: Commiting file changes"
           su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m 'Update env' && git push origin main"

@@ -26,8 +26,16 @@
             ],
             "environment": [
                 {
-                    "name": "AWS_XRAY_DAEMON_ADDRESS",
-                    "value": "localhost:2000"
+                "name": "AWS_XRAY_DAEMON_ADDRESS",
+                "value": "localhost:2000"
+                },
+                {
+                "name": "BUCKET_NAME",
+                "value": "aws102-ws-s3bucketwildlife-pvysfabucsrv"
+                },
+                {
+                "name": "AWS_REGION",
+                "value": "us-west-2"
                 }
             ],
             "logConfiguration": {
