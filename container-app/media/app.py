@@ -9,6 +9,7 @@ from flask import Flask, jsonify, send_file, request
 from botocore.exceptions import ClientError
 from pymongo import MongoClient
 import logging
+import time
 from aws_xray_sdk.core import xray_recorder, patch_all
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 
@@ -24,16 +25,30 @@ xray_recorder.configure(
 )
 patch_all()
 
-# Disable OTEL metrics export that's causing errors
-import os
-os.environ["OTEL_SDK_DISABLED"] = "true"
-
 app = Flask(__name__)
 logger.info("initializing xray middleware")
 # Add X-Ray middleware to Flask
 XRayMiddleware(app, xray_recorder)
 
-# Load environment variables
+# Simple retry mechanism: 60 attempts with 30-second delay (30 minutes total)
+def connect_with_retry(connect_func, service_name, max_attempts=60, delay=30):
+    logger.info(f"Connecting to {service_name} with retry logic...")
+    
+    for attempt in range(max_attempts):
+        try:
+            result = connect_func()
+            logger.info(f"Successfully connected to {service_name} on attempt {attempt+1}")
+            return result
+        except Exception as e:
+            if attempt < max_attempts - 1:
+                logger.warning(f"Connection to {service_name} failed (attempt {attempt+1}/{max_attempts}): {str(e)}")
+                logger.info(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                logger.error(f"Failed to connect to {service_name} after {max_attempts} attempts (30 minutes)")
+                raise
+
+# Get environment variables from ECS task definition
 logger.info("Getting environment variables from task definition")
 AWS_REGION = os.getenv('AWS_REGION')
 BUCKET_NAME = os.getenv('BUCKET_NAME')
@@ -47,7 +62,10 @@ s3 = boto3.client('s3', region_name=AWS_REGION)
 
 # Initialize MongoDB client
 logger.info("Connecting to MongoDB")
-mongo_client = MongoClient('mongodb://wildlife-datadb.wildlife:27017')
+mongo_client = connect_with_retry(
+    lambda: MongoClient('mongodb://wildlife-datadb.wildlife:27017'),
+    'MongoDB (wildlife-datadb)'
+)
 db = mongo_client.wildlife_db
 
 # Constants

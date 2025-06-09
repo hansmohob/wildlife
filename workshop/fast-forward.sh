@@ -152,17 +152,6 @@ aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80
 ### START: 08 Create Services (ECS) ###
 aws ecs create-service \
     --cluster REPLACE_PREFIX_CODE-ecs \
-    --service-name wildlife-alerts-service \
-    --task-definition wildlife-alerts-task \
-    --desired-count 2 \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
-    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
-    --no-cli-pager
-
-aws ecs create-service \
-    --cluster REPLACE_PREFIX_CODE-ecs \
     --service-name wildlife-datadb-service \
     --task-definition wildlife-datadb-task \
     --desired-count 2 \
@@ -172,6 +161,12 @@ aws ecs create-service \
     --placement-constraints "type=distinctInstance" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
+
+echo "Waiting for wildlife-datadb-service to stabilize..."
+aws ecs wait services-stable \
+    --cluster $CLUSTER_NAME \
+    --services wildlife-datadb-service \
+    --region $REGION
 
 aws ecs create-service \
     --cluster REPLACE_PREFIX_CODE-ecs \
@@ -186,13 +181,12 @@ aws ecs create-service \
 
 aws ecs create-service \
     --cluster REPLACE_PREFIX_CODE-ecs \
-    --service-name wildlife-frontend-service \
-    --task-definition wildlife-frontend-task \
+    --service-name wildlife-alerts-service \
+    --task-definition wildlife-alerts-task \
     --desired-count 2 \
     --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
-    --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -204,6 +198,18 @@ aws ecs create-service \
     --launch-type FARGATE \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
+    --no-cli-pager
+
+aws ecs create-service \
+    --cluster REPLACE_PREFIX_CODE-ecs \
+    --service-name wildlife-frontend-service \
+    --task-definition wildlife-frontend-task \
+    --desired-count 2 \
+    --launch-type FARGATE \
+    --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+    --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+    --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 ### END: 08 Create Services (ECS) ###
