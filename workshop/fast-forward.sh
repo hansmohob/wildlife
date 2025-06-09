@@ -165,9 +165,9 @@ aws ecs create-service \
 
 echo "Waiting for wildlife-datadb-service to stabilize..."
 aws ecs wait services-stable \
-    --cluster $CLUSTER_NAME \
+    --cluster REPLACE_PREFIX_CODE-ecs \
     --services wildlife-datadb-service \
-    --region $REGION
+    --region REPLACE_AWS_REGION
 
 aws ecs create-service \
     --cluster REPLACE_PREFIX_CODE-ecs \

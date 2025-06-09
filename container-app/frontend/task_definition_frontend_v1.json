@@ -10,18 +10,30 @@
     "networkMode": "awsvpc",
     "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution",
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
+    "volumes": [
+        {
+            "name": "tmp-volume"
+        }
+    ],
     "containerDefinitions": [
         {
             "name": "wildlife-frontend",
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
             "essential": true,
-            "readonlyRootFilesystem": true,
+            "readonlyRootFilesystem": false,
             "portMappings": [
                 {
                     "containerPort": 5000,
                     "protocol": "tcp",
                     "name": "frontend-http",
                     "appProtocol": "http"
+                }
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "tmp-volume",
+                    "containerPath": "/tmp",
+                    "readOnly": false
                 }
             ],
             "environment": [
