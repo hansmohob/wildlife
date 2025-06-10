@@ -215,6 +215,29 @@ aws ecs create-service \
     --no-cli-pager
 ### END: 08 Create Services (ECS) ###
 
+### START: 09 Modify Task Role (ECS) ###
+aws iam attach-role-policy \
+    --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
+    --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-s3
+
+aws ecs update-service \
+    --cluster REPLACE_PREFIX_CODE-ecs \
+    --service wildlife-media-service \
+    --force-new-deployment \
+    --no-cli-pager
+### END: 09 Modify Task Role (ECS) ###
+
+### START: 10 Create Storage (EFS) ###
+### here we will attach ebs volume to data
+### END: 10 Create Storage (EFS) ###
+
+### START: 11 Create Storage (EFS) ###
+### here we will attach efs volume to data
+### END: 11 Create Storage (EFS) ###
+
+
+### WIP:
+
 ### START: 09 Deploy AWS Distrubution for Open Telemetry (ADOT) ###
 aws ecs register-task-definition \
     --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v2.json \
