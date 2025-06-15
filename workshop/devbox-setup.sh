@@ -52,8 +52,11 @@ install_component() {
     local commands="$2"
     local error_message="$3"
     
+    # Strip _installed from display name
+    local display_name=${component_name%_installed}
+    
     if ! step_completed "$component_name"; then
-        echo "INFO: Installing $component_name..."
+        echo "INFO: Installing $display_name..."
         if (
             set -e  # Exit on any error
             eval "$commands"
@@ -65,7 +68,7 @@ install_component() {
             return 1
         fi
     else
-        echo "INFO: $component_name already installed, skipping"
+        echo "INFO: $display_name already installed, skipping"
         return 0
     fi
 }
