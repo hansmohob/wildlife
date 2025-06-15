@@ -223,7 +223,12 @@ install_component "git_remote_s3_installed" '
 dnf install git -y -q
 dnf install -y python3 python3-pip
 pip3 install boto3==${BOTO3_VERSION}
-pip3 install git-remote-s3==${GIT_REMOTE_S3_VERSION}
+if [ "${GIT_REMOTE_S3_VERSION}" = "latest" ]; then
+    pip3 install git-remote-s3
+else
+    pip3 install git-remote-s3==${GIT_REMOTE_S3_VERSION}
+fi
+pip3 show git-remote-s3 || exit 1
 su - ec2-user -c "git config --global user.name \"EC2 User\""
 su - ec2-user -c "git config --global user.email \"ec2-user@example.com\""
 su - ec2-user -c "git config --global init.defaultBranch main"
@@ -280,9 +285,19 @@ install_component "q_cli_prerequisites" '
 ARCH=$(detect_architecture)
 su - ec2-user -c "curl --proto \"=https\" --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-${ARCH}-linux.zip -o q.zip"
 su - ec2-user -c "unzip q.zip"
-pip3 install uv==${UV_VERSION}
-uv python install ${UV_PYTHON_VERSION}
-pip3 install uvenv==${UVENV_VERSION}
+if [ "${UV_VERSION}" = "latest" ]; then
+    pip3 install uv
+else
+    pip3 install uv==${UV_VERSION}
+fi
+pip3 show uv || exit 1
+# uv python install ${UV_PYTHON_VERSION}
+if [ "${UVENV_VERSION}" = "latest" ]; then
+    pip3 install uvenv
+else
+    pip3 install uvenv==${UVENV_VERSION}
+fi
+pip3 show uvenv || exit 1
 uvenv install --python ${MCP_PYTHON_VERSION} awslabs.terraform-mcp-server
 uvenv install --python ${MCP_PYTHON_VERSION} awslabs.ecs-mcp-server
 uvenv install --python ${MCP_PYTHON_VERSION} awslabs.eks-mcp-server
