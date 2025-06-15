@@ -213,6 +213,8 @@ aws ecs create-service \
     --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
+
+### do something like congratulations your applciation is up connect to it using thei url
 ### END: 08 Create Services (ECS) ###
 
 ### START: 09 Modify Task Role (ECS) ###

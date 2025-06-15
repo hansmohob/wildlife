@@ -1,5 +1,30 @@
 {
   "mcpServers": {
+    "awslabs.core-mcp-server": {
+      "command": "uvenv",
+      "args": [
+        "run",
+        "awslabs.core-mcp-server"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "autoApprove": [],
+      "disabled": false
+    },
+    "awslabs.aws-documentation-mcp-server": {
+      "command": "uvenv",
+      "args": [
+        "run",
+        "awslabs.aws-documentation-mcp-server"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
     "awslabs.ecs-mcp-server": {
       "command": "uvenv",
       "args": [
@@ -7,24 +32,24 @@
         "awslabs.ecs-mcp-server"
       ],
       "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR",
-        "ALLOW_WRITE": "false",
-        "ALLOW_SENSITIVE_DATA": "false",
-        "FASTMCP_LOG_FILE": "/home/ec2-user/workspace/my-workspace/.amazonq/ecs-mcp-server.log"
+        "FASTMCP_LOG_LEVEL": "ERROR"
       },
-      "timeout": 120000
+      "disabled": false,
+      "autoApprove": []
     },
     "awslabs.eks-mcp-server": {
       "command": "uvenv",
       "args": [
         "run",
         "awslabs.eks-mcp-server",
+        "--",
         "--allow-write"
       ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       },
-      "timeout": 120000
+      "disabled": false,
+      "autoApprove": []
     },
     "awslabs.terraform-mcp-server": {
       "command": "uvenv",
@@ -35,7 +60,8 @@
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       },
-      "timeout": 120000
+      "disabled": false,
+      "autoApprove": []
     }
   }
 }
