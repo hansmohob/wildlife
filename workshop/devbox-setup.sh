@@ -283,11 +283,17 @@ if [ "${AUTO_SET_DEVELOPER_PROFILE}" = "true" ] && ! step_completed "developer_p
     ' "Failed to set AWS profile defaults"
 fi
 
-# Install Amazon Q CLI prerequisites
 install_component "q_cli_prerequisites" '
 ARCH=$(detect_architecture)
-su - ec2-user -c "curl --proto \"=https\" --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-${ARCH}-linux.zip -o q.zip"
-su - ec2-user -c "unzip q.zip"
+# Download and install Q CLI
+su - ec2-user -c "curl --proto \"=https\" --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-${ARCH}-linux.zip -o /tmp/q.zip"
+cd /tmp
+unzip -o q.zip
+mv q/q /usr/local/bin/
+chmod +x /usr/local/bin/q
+rm -rf /tmp/q.zip /tmp/q
+
+# Install other prerequisites
 if [ "${UV_VERSION}" = "latest" ]; then
     pip3 install uv
 else
@@ -307,7 +313,7 @@ uvenv install --python ${MCP_PYTHON_VERSION} awslabs.eks-mcp-server
 uvenv install --python ${MCP_PYTHON_VERSION} awslabs.core-mcp-server
 uvenv install --python ${MCP_PYTHON_VERSION} awslabs.aws-documentation-mcp-server
 su - ec2-user -c "mkdir -p ~/.amazonq/logs"
-su - ec2-user -c "ln -sf /home/ec2-user/workspace/my-workspace/.amazonq/mcp.json ~/.amazonq/mcp.json"
+su - ec2-user -c "ln -sf /home/********/workspace/my-workspace/.amazonq/mcp.json ~/.amazonq/mcp.json"
 echo "NOTE: To complete Q CLI setup, see README for IAM IDC instructions"
 ' "Failed to set up Amazon Q CLI prerequisites"
 
