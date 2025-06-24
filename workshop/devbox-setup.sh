@@ -289,9 +289,8 @@ ARCH=$(detect_architecture)
 su - ec2-user -c "curl --proto \"=https\" --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-${ARCH}-linux.zip -o /tmp/q.zip"
 cd /tmp
 unzip -o q.zip
-mv q/bin/* /usr/local/bin/
+mv /tmp/q/* /usr/local/bin/
 chmod +x /usr/local/bin/q
-rm -rf /tmp/q.zip /tmp/q
 
 # Install other prerequisites
 if [ "${UV_VERSION}" = "latest" ]; then
