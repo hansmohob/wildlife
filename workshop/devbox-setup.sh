@@ -184,7 +184,7 @@ dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/has
 dnf install -y terraform
 ' "Failed to install Terraform"
 
-# Install .NET SDK (if enabled)
+# Install .NET SDK
 if [ "${INSTALL_DOTNET}" = "true" ]; then
     install_component "dotnet_installed" '
     dnf install -y dotnet-sdk-${DOTNET_VERSION}
