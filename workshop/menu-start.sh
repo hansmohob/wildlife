@@ -339,7 +339,7 @@ create_ecs_services() {
         --cluster REPLACE_PREFIX_CODE-ecs \
         --service-name REPLACE_PREFIX_CODE-datadb-service \
         --task-definition REPLACE_PREFIX_CODE-datadb-task \
-        --desired-count 2 \
+        --desired-count 1 \
         --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
