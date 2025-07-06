@@ -178,38 +178,38 @@ build_images() {
 
 push_images() {
     echo -e "${GREEN}Pushing Images to ECR...${NC}"
-    aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 187387853060.dkr.ecr.us-west-2.amazonaws.com
-    docker tag wildlife/alerts 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/alerts:latest
-    docker tag wildlife/datadb 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/datadb:latest
-    docker tag wildlife/dataapi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/dataapi:latest
-    docker tag wildlife/frontend 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/frontend:latest
-    docker tag wildlife/media 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/media:latest
-    stdbuf -oL docker push 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/alerts:latest
-    stdbuf -oL docker push 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/datadb:latest
-    stdbuf -oL docker push 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/dataapi:latest
-    stdbuf -oL docker push 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/frontend:latest
-    stdbuf -oL docker push 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/media:latest
-    echo -e "${GREEN}✅ Images pushed to ECR${NC}"
+    aws ecr get-login-password --region REPLACE_AWS_REGION | docker login --username AWS --password-stdin REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com
+    docker tag wildlife/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
+    docker tag wildlife/datadb REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
+    docker tag wildlife/dataapi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
+    docker tag wildlife/frontend REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
+    docker tag wildlife/media REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+    echo -e "${GREEN}Images pushed to ECR${NC}"
 }
 
 setup_vpc_endpoints() {
     echo -e "${GREEN}Setting up VPC Endpoints...${NC}"
     aws ec2 create-vpc-endpoint \
-        --vpc-id vpc-0a285f9be46d5fe6d \
+        --vpc-id REPLACE_VPC_ID \
         --vpc-endpoint-type Interface \
-        --service-name com.amazonaws.us-west-2.ecr.api \
-        --subnet-ids subnet-0c7f5d372c67a77ce subnet-0e3eef21394b6c8d7 \
-        --security-group-ids sg-0f1504a2e29ffd007 \
+        --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.api \
+        --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
+        --security-group-ids REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
 
     aws ec2 create-vpc-endpoint \
-        --vpc-id vpc-0a285f9be46d5fe6d \
+        --vpc-id REPLACE_VPC_ID \
         --vpc-endpoint-type Interface \
-        --service-name com.amazonaws.us-west-2.ecr.dkr \
-        --subnet-ids subnet-0c7f5d372c67a77ce subnet-0e3eef21394b6c8d7 \
-        --security-group-ids sg-0f1504a2e29ffd007 \
+        --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.dkr \
+        --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
+        --security-group-ids REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
-    echo -e "${GREEN}✅ VPC Endpoints created${NC}"
+    echo -e "${GREEN}VPC Endpoints created${NC}"
 }
 
 deploy_ecs_cluster() {
@@ -219,54 +219,54 @@ deploy_ecs_cluster() {
 
     echo "Creating launch template..."
     aws ec2 create-launch-template \
-        --launch-template-name wildlife-launchtemplate-ecs \
+        --launch-template-name REPLACE_PREFIX_CODE-launchtemplate-ecs \
         --version-description 1 \
         --launch-template-data "{
             \"ImageId\": \"$ECS_AMI_ID\",
             \"InstanceType\": \"t4g.medium\",
             \"UserData\": \"$USERDATA\",
             \"IamInstanceProfile\": {
-                \"Name\": \"wildlife-iamprofile-ecs\"
+                \"Name\": \"REPLACE_PREFIX_CODE-iamprofile-ecs\"
             },
-            \"SecurityGroupIds\": [\"sg-0f1504a2e29ffd007\"],
-            \"KeyName\": \"wildlife-ec2-keypair\"
+            \"SecurityGroupIds\": [\"REPLACE_SECURITY_GROUP_APP\"],
+            \"KeyName\": \"REPLACE_PREFIX_CODE-ec2-keypair\"
         }"
 
     echo "Creating auto scaling group..."
     aws autoscaling create-auto-scaling-group \
-        --auto-scaling-group-name wildlife-asg-ecs \
-        --launch-template LaunchTemplateName=wildlife-launchtemplate-ecs \
+        --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs \
+        --launch-template LaunchTemplateName=REPLACE_PREFIX_CODE-launchtemplate-ecs \
         --min-size 2 \
         --max-size 2 \
         --desired-capacity 2 \
-        --vpc-zone-identifier "subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7" \
-        --tags ResourceId=wildlife-asg-ecs,ResourceType=auto-scaling-group,Key=Name,Value=wildlife-ecs-instance,PropagateAtLaunch=true
+        --vpc-zone-identifier "REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2" \
+        --tags ResourceId=REPLACE_PREFIX_CODE-asg-ecs,ResourceType=auto-scaling-group,Key=Name,Value=REPLACE_PREFIX_CODE-ecs-instance,PropagateAtLaunch=true
 
-    ASG_ARN=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names wildlife-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupARN' --output text)
+    ASG_ARN=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupARN' --output text)
 
     echo "Enabling container insights..."
     aws ecs put-account-setting --name containerInsights --value enhanced
 
     echo "Creating ECS cluster..."
     aws ecs create-cluster \
-        --cluster-name wildlife-ecs \
+        --cluster-name REPLACE_PREFIX_CODE-ecs \
         --service-connect-defaults namespace=wildlife \
         --settings name=containerInsights,value=enhanced \
         --no-cli-pager
 
     echo "Waiting for cluster to be active..."
-    until aws ecs describe-clusters --clusters wildlife-ecs --query 'clusters[0].status' --output text | grep -q ACTIVE; do sleep 5; done
+    until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text | grep -q ACTIVE; do sleep 5; done
     sleep 5
 
     echo "Creating capacity provider..."
     aws ecs create-capacity-provider \
-        --name wildlife-capacity-ec2 \
+        --name REPLACE_PREFIX_CODE-capacity-ec2 \
         --auto-scaling-group-provider autoScalingGroupArn=$ASG_ARN,managedScaling='{status=ENABLED,targetCapacity=80}'
 
     echo "Configuring cluster capacity providers..."
     aws ecs put-cluster-capacity-providers \
-        --cluster wildlife-ecs \
-        --capacity-providers FARGATE FARGATE_SPOT wildlife-capacity-ec2 \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --capacity-providers FARGATE FARGATE_SPOT REPLACE_PREFIX_CODE-capacity-ec2 \
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
     echo -e "${GREEN}✅ ECS Cluster deployed${NC}"
@@ -300,10 +300,10 @@ create_load_balancer() {
     echo -e "${GREEN}Creating Load Balancer...${NC}"
     echo "Creating target group..."
     TG_ARN=$(aws elbv2 create-target-group \
-        --name wildlife-targetgroup-ecs \
+        --name REPLACE_PREFIX_CODE-targetgroup-ecs \
         --protocol HTTP \
         --port 5000 \
-        --vpc-id vpc-0a285f9be46d5fe6d \
+        --vpc-id REPLACE_VPC_ID \
         --target-type ip \
         --health-check-path /wildlife/health \
         --health-check-interval-seconds 30 \
@@ -316,9 +316,9 @@ create_load_balancer() {
 
     echo "Creating application load balancer..."
     ALB_ARN=$(aws elbv2 create-load-balancer \
-        --name wildlife-alb-ecs \
-        --subnets subnet-018119e4fa1d1ffd7 subnet-0ea216138a4361cb0 \
-        --security-groups sg-04f90279a91b52df7 \
+        --name REPLACE_PREFIX_CODE-alb-ecs \
+        --subnets REPLACE_PUBLIC_SUBNET_1 REPLACE_PUBLIC_SUBNET_2 \
+        --security-groups REPLACE_SECURITY_GROUP_ALB \
         --scheme internet-facing \
         --type application \
         --output text \
@@ -331,69 +331,69 @@ create_load_balancer() {
 
 create_ecs_services() {
     echo -e "${GREEN}Creating ECS Services...${NC}"
-    TG_ARN=$(aws elbv2 describe-target-groups --names wildlife-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text)
+    TG_ARN=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text)
     
     echo "Creating datadb service..."
     aws ecs create-service \
-        --cluster wildlife-ecs \
-        --service-name wildlife-datadb-service \
-        --task-definition wildlife-datadb-task \
-        --desired-count 1 \
-        --capacity-provider-strategy capacityProvider=wildlife-capacity-ec2,weight=1 \
-        --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service-name REPLACE_PREFIX_CODE-datadb-service \
+        --task-definition REPLACE_PREFIX_CODE-datadb-task \
+        --desired-count 2 \
+        --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
     echo "Waiting for datadb service to stabilize..."
-    aws ecs wait services-stable --cluster wildlife-ecs --services wildlife-datadb-service --region us-west-2
+    aws ecs wait services-stable --cluster REPLACE_PREFIX_CODE-ecs --services REPLACE_PREFIX_CODE-datadb-service --region REPLACE_AWS_REGION
 
     echo "Creating dataapi service..."
     aws ecs create-service \
-        --cluster wildlife-ecs \
-        --service-name wildlife-dataapi-service \
-        --task-definition wildlife-dataapi-task \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service-name REPLACE_PREFIX_CODE-dataapi-service \
+        --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-http,discoveryName=wildlife-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
     echo "Creating alerts service..."
     aws ecs create-service \
-        --cluster wildlife-ecs \
-        --service-name wildlife-alerts-service \
-        --task-definition wildlife-alerts-task \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service-name REPLACE_PREFIX_CODE-alerts-service \
+        --task-definition REPLACE_PREFIX_CODE-alerts-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=wildlife-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=REPLACE_PREFIX_CODE-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
     echo "Creating media service..."
     aws ecs create-service \
-        --cluster wildlife-ecs \
-        --service-name wildlife-media-service \
-        --task-definition wildlife-media-task \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service-name REPLACE_PREFIX_CODE-media-service \
+        --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=wildlife-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
     echo "Creating frontend service..."
     aws ecs create-service \
-        --cluster wildlife-ecs \
-        --service-name wildlife-frontend-service \
-        --task-definition wildlife-frontend-task \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service-name REPLACE_PREFIX_CODE-frontend-service \
+        --task-definition REPLACE_PREFIX_CODE-frontend-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=wildlife-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
-        --load-balancers "targetGroupArn=$TG_ARN,containerName=wildlife-frontend,containerPort=5000" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=REPLACE_PREFIX_CODE-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --load-balancers "targetGroupArn=$TG_ARN,containerName=REPLACE_PREFIX_CODE-frontend,containerPort=5000" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
@@ -401,7 +401,7 @@ create_ecs_services() {
     echo -e "${CYAN}Waiting for all services to start running...${NC}"
     
     # Array of services to check
-    services=("wildlife-datadb-service" "wildlife-dataapi-service" "wildlife-alerts-service" "wildlife-media-service" "wildlife-frontend-service")
+    services=("REPLACE_PREFIX_CODE-datadb-service" "REPLACE_PREFIX_CODE-dataapi-service" "REPLACE_PREFIX_CODE-alerts-service" "REPLACE_PREFIX_CODE-media-service" "REPLACE_PREFIX_CODE-frontend-service")
     total_services=${#services[@]}
     
     # Check each service status
@@ -413,8 +413,8 @@ create_ecs_services() {
             service_num=$((i + 1))
             
             # Get running task count for this service
-            running_tasks=$(aws ecs describe-services --cluster wildlife-ecs --services $service --query 'services[0].runningCount' --output text 2>/dev/null)
-            desired_tasks=$(aws ecs describe-services --cluster wildlife-ecs --services $service --query 'services[0].desiredCount' --output text 2>/dev/null)
+            running_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services $service --query 'services[0].runningCount' --output text 2>/dev/null)
+            desired_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services $service --query 'services[0].desiredCount' --output text 2>/dev/null)
             
             if [ "$running_tasks" = "$desired_tasks" ] && [ "$running_tasks" != "0" ]; then
                 echo -e "${GREEN}✅ Service $service_num/$total_services: $service is running ($running_tasks/$desired_tasks tasks)${NC}"
@@ -435,19 +435,19 @@ create_ecs_services() {
     done
 
     echo ""
-    echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/wildlife${NC}"
+    echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/wildlife${NC}"
 }
 
 configure_iam() {
     echo -e "${GREEN}Configuring IAM Permissions...${NC}"
     aws iam attach-role-policy \
-        --role-name wildlife-iamrole-ecstask-standard \
-        --policy-arn arn:aws:iam::187387853060:policy/wildlife-iampolicy-s3
+        --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
+        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-s3
 
     echo "Forcing new deployment for media service..."
     aws ecs update-service \
-        --cluster wildlife-ecs \
-        --service wildlife-media-service \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service REPLACE_PREFIX_CODE-media-service \
         --force-new-deployment \
         --no-cli-pager
     echo -e "${GREEN}✅ IAM permissions configured${NC}"
@@ -455,8 +455,8 @@ configure_iam() {
 
 update_lambda_config() {
     echo -e "${GREEN}Updating Lambda Configuration...${NC}"
-    ALB_DNS=$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
-    aws lambda update-function-configuration --function-name wildlife-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
+    aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
     echo -e "${GREEN}✅ Lambda configuration updated${NC}"
 }
 
@@ -468,31 +468,31 @@ deploy_adot() {
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v2.json \
         --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --task-definition wildlife-alerts-task --force-new-deployment --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-alerts-service --task-definition REPLACE_PREFIX_CODE-alerts-task --force-new-deployment --no-cli-pager
 
     echo "Updating datadb task definition..."
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/datadb/task_definition_datadb_v3.json \
         --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-datadb-service --task-definition wildlife-datadb-task --force-new-deployment --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-datadb-service --task-definition REPLACE_PREFIX_CODE-datadb-task --force-new-deployment --no-cli-pager
 
     echo "Updating dataapi task definition..."
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v3.json \
         --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-dataapi-service --task-definition wildlife-dataapi-task --force-new-deployment --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-dataapi-service --task-definition REPLACE_PREFIX_CODE-dataapi-task --force-new-deployment --no-cli-pager
 
     echo "Updating frontend task definition..."
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v2.json \
         --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --task-definition wildlife-frontend-task --force-new-deployment --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-frontend-service --task-definition REPLACE_PREFIX_CODE-frontend-task --force-new-deployment --no-cli-pager
 
     echo "Updating media task definition..."
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v2.json \
         --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --task-definition wildlife-media-task --force-new-deployment --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --task-definition REPLACE_PREFIX_CODE-media-task --force-new-deployment --no-cli-pager
 
     echo -e "${GREEN}✅ ADOT deployment completed${NC}"
 }
@@ -511,16 +511,16 @@ check_status() {
     echo -e "${GREEN}Checking Deployment Status...${NC}"
     echo ""
     echo -e "${CYAN}ECS Cluster Status:${NC}"
-    aws ecs describe-clusters --clusters wildlife-ecs --query 'clusters[0].{Status:status,ActiveServices:activeServicesCount,RunningTasks:runningTasksCount}' --output table 2>/dev/null || echo "Cluster not found"
+    aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].{Status:status,ActiveServices:activeServicesCount,RunningTasks:runningTasksCount}' --output table 2>/dev/null || echo "Cluster not found"
     
     echo ""
     echo -e "${CYAN}ECS Services:${NC}"
-    aws ecs list-services --cluster wildlife-ecs --query 'serviceArns[]' --output table 2>/dev/null || echo "No services found"
+    aws ecs list-services --cluster REPLACE_PREFIX_CODE-ecs --query 'serviceArns[]' --output table 2>/dev/null || echo "No services found"
     
     echo ""
     echo -e "${CYAN}Service Status Details:${NC}"
-    for service in wildlife-datadb-service wildlife-dataapi-service wildlife-alerts-service wildlife-media-service wildlife-frontend-service; do
-        status=$(aws ecs describe-services --cluster wildlife-ecs --services $service --query 'services[0].{Service:serviceName,Status:status,Running:runningCount,Desired:desiredCount}' --output table 2>/dev/null)
+    for service in REPLACE_PREFIX_CODE-datadb-service REPLACE_PREFIX_CODE-dataapi-service REPLACE_PREFIX_CODE-alerts-service REPLACE_PREFIX_CODE-media-service REPLACE_PREFIX_CODE-frontend-service; do
+        status=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services $service --query 'services[0].{Service:serviceName,Status:status,Running:runningCount,Desired:desiredCount}' --output table 2>/dev/null)
         if [ $? -eq 0 ]; then
             echo "$status"
         fi
@@ -529,7 +529,7 @@ check_status() {
 
 show_app_url() {
     echo -e "${GREEN}Getting Application URL...${NC}"
-    ALB_DNS=$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null)
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null)
     if [ "$ALB_DNS" != "None" ] && [ "$ALB_DNS" != "" ]; then
         echo ""
         echo -e "${CYAN}🌐 Application URL:${NC}"
@@ -570,27 +570,27 @@ run_full_setup() {
 cleanup_services() {
     echo -e "${RED}Deleting ECS Services...${NC}"
     echo "Scaling down services to 0..."
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-frontend-service --desired-count 0 --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-media-service --desired-count 0 --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-alerts-service --desired-count 0 --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-dataapi-service --desired-count 0 --no-cli-pager
-    aws ecs update-service --cluster wildlife-ecs --service wildlife-datadb-service --desired-count 0 --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-frontend-service --desired-count 0 --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --desired-count 0 --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-alerts-service --desired-count 0 --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-dataapi-service --desired-count 0 --no-cli-pager
+    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-datadb-service --desired-count 0 --no-cli-pager
 
     echo "Waiting for services to scale down..."
-    aws ecs wait services-stable --cluster wildlife-ecs --services wildlife-frontend-service wildlife-media-service wildlife-alerts-service wildlife-dataapi-service wildlife-datadb-service
+    aws ecs wait services-stable --cluster REPLACE_PREFIX_CODE-ecs --services REPLACE_PREFIX_CODE-frontend-service REPLACE_PREFIX_CODE-media-service REPLACE_PREFIX_CODE-alerts-service REPLACE_PREFIX_CODE-dataapi-service REPLACE_PREFIX_CODE-datadb-service
 
     echo "Deleting services..."
-    aws ecs delete-service --cluster wildlife-ecs --service wildlife-frontend-service --force --no-cli-pager
-    aws ecs delete-service --cluster wildlife-ecs --service wildlife-media-service --force --no-cli-pager
-    aws ecs delete-service --cluster wildlife-ecs --service wildlife-alerts-service --force --no-cli-pager
-    aws ecs delete-service --cluster wildlife-ecs --service wildlife-dataapi-service --force --no-cli-pager
-    aws ecs delete-service --cluster wildlife-ecs --service wildlife-datadb-service --force --no-cli-pager
+    aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-frontend-service --force --no-cli-pager
+    aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --force --no-cli-pager
+    aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-alerts-service --force --no-cli-pager
+    aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-dataapi-service --force --no-cli-pager
+    aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-datadb-service --force --no-cli-pager
     echo -e "${GREEN}✅ ECS Services deleted${NC}"
 }
 
 cleanup_load_balancer() {
     echo -e "${RED}Deleting Load Balancer...${NC}"
-    ALB_ARN=$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null)
+    ALB_ARN=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null)
     if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "" ]; then
         echo "Deleting listeners..."
         LISTENER_ARNS=$(aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[].ListenerArn' --output text 2>/dev/null)
@@ -603,7 +603,7 @@ cleanup_load_balancer() {
     fi
 
     echo "Deleting target group..."
-    TG_ARN=$(aws elbv2 describe-target-groups --names wildlife-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null)
+    TG_ARN=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null)
     if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "" ]; then
         aws elbv2 delete-target-group --target-group-arn $TG_ARN --no-cli-pager
     fi
@@ -614,49 +614,49 @@ cleanup_cluster() {
     echo -e "${RED}Deleting ECS Cluster...${NC}"
     
     echo "Deregistering container instances..."
-    CONTAINER_INSTANCES=$(aws ecs list-container-instances --cluster wildlife-ecs --query 'containerInstanceArns[]' --output text 2>/dev/null)
+    CONTAINER_INSTANCES=$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'containerInstanceArns[]' --output text 2>/dev/null)
     if [ "$CONTAINER_INSTANCES" != "" ]; then
         for INSTANCE_ARN in $CONTAINER_INSTANCES; do
-            aws ecs deregister-container-instance --cluster wildlife-ecs --container-instance $INSTANCE_ARN --force --no-cli-pager
+            aws ecs deregister-container-instance --cluster REPLACE_PREFIX_CODE-ecs --container-instance $INSTANCE_ARN --force --no-cli-pager
         done
         
         echo "Waiting for container instances to deregister..."
-        while [ "$(aws ecs list-container-instances --cluster wildlife-ecs --query 'length(containerInstanceArns)' --output text 2>/dev/null)" != "0" ]; do
+        while [ "$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'length(containerInstanceArns)' --output text 2>/dev/null)" != "0" ]; do
             echo "Container instances still active, waiting..."
             sleep 5
         done
     fi
 
     echo "Removing capacity providers..."
-    aws ecs put-cluster-capacity-providers --cluster wildlife-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager
+    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager
     
     echo "Deleting capacity provider..."
-    aws ecs delete-capacity-provider --capacity-provider wildlife-capacity-ec2 --no-cli-pager
+    aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager
     
     echo "Deleting cluster..."
-    aws ecs delete-cluster --cluster wildlife-ecs --no-cli-pager
+    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
     echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
 }
 
 cleanup_asg() {
     echo -e "${RED}Deleting Auto Scaling Group...${NC}"
     echo "Force deleting ASG..."
-    aws autoscaling delete-auto-scaling-group --auto-scaling-group-name wildlife-asg-ecs --force-delete --no-cli-pager
+    aws autoscaling delete-auto-scaling-group --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs --force-delete --no-cli-pager
     
     echo "Waiting for Auto Scaling Group to be deleted..."
-    while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names wildlife-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q wildlife-asg-ecs; do
+    while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q REPLACE_PREFIX_CODE-asg-ecs; do
         echo "ASG still exists, waiting..."
         sleep 5
     done
     
     echo "Deleting launch template..."
-    aws ec2 delete-launch-template --launch-template-name wildlife-launchtemplate-ecs --no-cli-pager
+    aws ec2 delete-launch-template --launch-template-name REPLACE_PREFIX_CODE-launchtemplate-ecs --no-cli-pager
     echo -e "${GREEN}✅ Auto Scaling Group deleted${NC}"
 }
 
 cleanup_task_definitions() {
     echo -e "${RED}Deregistering Task Definitions...${NC}"
-    for TASK_DEF in wildlife-alerts-task wildlife-datadb-task wildlife-dataapi-task wildlife-frontend-task wildlife-media-task; do
+    for TASK_DEF in REPLACE_PREFIX_CODE-alerts-task REPLACE_PREFIX_CODE-datadb-task REPLACE_PREFIX_CODE-dataapi-task REPLACE_PREFIX_CODE-frontend-task REPLACE_PREFIX_CODE-media-task; do
         echo "Deregistering $TASK_DEF..."
         REVISIONS=$(aws ecs list-task-definitions --family-prefix $TASK_DEF --query 'taskDefinitionArns[]' --output text 2>/dev/null)
         for REVISION in $REVISIONS; do
@@ -668,7 +668,7 @@ cleanup_task_definitions() {
 
 cleanup_vpc_endpoints() {
     echo -e "${RED}Deleting VPC Endpoints...${NC}"
-    VPC_ENDPOINTS=$(aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=vpc-0a285f9be46d5fe6d" "Name=service-name,Values=com.amazonaws.us-west-2.ecr.*" --query 'VpcEndpoints[].VpcEndpointId' --output text 2>/dev/null)
+    VPC_ENDPOINTS=$(aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=REPLACE_VPC_ID" "Name=service-name,Values=com.amazonaws.REPLACE_AWS_REGION.ecr.*" --query 'VpcEndpoints[].VpcEndpointId' --output text 2>/dev/null)
     for ENDPOINT_ID in $VPC_ENDPOINTS; do
         echo "Deleting VPC endpoint $ENDPOINT_ID..."
         aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $ENDPOINT_ID --no-cli-pager
@@ -689,11 +689,11 @@ cleanup_docker() {
     echo -e "${RED}Cleaning up Docker Images...${NC}"
     echo "Removing local wildlife images..."
     docker rmi wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media 2>/dev/null
-    docker rmi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/alerts:latest 2>/dev/null
-    docker rmi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/datadb:latest 2>/dev/null
-    docker rmi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/dataapi:latest 2>/dev/null
-    docker rmi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/frontend:latest 2>/dev/null
-    docker rmi 187387853060.dkr.ecr.us-west-2.amazonaws.com/wildlife/media:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest 2>/dev/null
 
     echo "Cleaning up unused Docker resources..."
     docker system prune -f
