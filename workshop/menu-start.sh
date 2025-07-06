@@ -15,7 +15,8 @@ declare -A EXECUTION_COUNT=()
 show_header() {
     clear
     echo -e "${PURPLE}================================================================${NC}"
-    echo -e "${PURPLE}                    WILDLIFE INFRASTRUCTURE MENU                 ${NC}"
+    echo -e "${PURPLE}                    AWS 101 - Containers                         ${NC}"
+    echo -e "${PURPLE}                    Wildlife Ranger Tool!                        ${NC}"
     echo -e "${PURPLE}================================================================${NC}"
     echo ""
 }
@@ -24,7 +25,7 @@ show_header() {
 # MENU CONFIGURATION - JUST ADD FUNCTIONS HERE!
 # =============================================================================
 # Format: "FUNCTION_NAME|DISPLAY_TEXT|SECTION"
-# Sections: SETUP, QUICK, ADVANCED, CLEANUP
+# Sections: SETUP, CLEANUP, QUICK, ADVANCED
 # The menu will auto-number and auto-discover these functions
 
 declare -a MENU_ITEMS=(
@@ -37,8 +38,8 @@ declare -a MENU_ITEMS=(
     "register_task_definitions|Register Task Definitions|SETUP"
     "create_load_balancer|Create Load Balancer|SETUP"
     "create_ecs_services|Create ECS Services|SETUP"
-    "configure_iam|Configure IAM Permissions|SETUP"
-    "update_lambda_config|Update Lambda Configuration|SETUP"
+    "fix_image_upload|Fix Image Upload|SETUP"
+    "fix_gps_data|Fix GPS Data|SETUP"
     "create_efs_storage|Create EFS Storage|SETUP"
     
     # CLEANUP COMMANDS
@@ -48,11 +49,12 @@ declare -a MENU_ITEMS=(
     "cleanup_asg|Delete Auto Scaling Group|CLEANUP"
     "cleanup_task_definitions|Delete Task Definitions|CLEANUP"
     "cleanup_vpc_endpoints|Delete VPC Endpoints|CLEANUP"
+    "cleanup_efs|Delete EFS Storage|CLEANUP"
     "cleanup_ecr|Delete ECR Repositories|CLEANUP"
     "cleanup_docker|Clean Docker Images|CLEANUP"
 
     # QUICK ACTIONS
-    "full_setup|Run Full Setup (All Setup Commands)|QUICK"
+    "full_setup|Full Setup (All Setup Commands)|QUICK"
     "check_status|Check Deployment Status|QUICK"
     "show_app_url|Show Application URL|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
@@ -75,9 +77,9 @@ show_menu() {
             echo ""
             case $section in
                 "SETUP") echo -e "${CYAN}SETUP COMMANDS:${NC}" ;;
+                "CLEANUP") echo -e "${RED}CLEANUP COMMANDS:${NC}" ;;
                 "QUICK") echo -e "${YELLOW}QUICK ACTIONS:${NC}" ;;
                 "ADVANCED") echo -e "${BLUE}ADVANCED FEATURES:${NC}" ;;
-                "CLEANUP") echo -e "${RED}CLEANUP COMMANDS:${NC}" ;;
             esac
             current_section="$section"
         fi
@@ -437,8 +439,8 @@ create_ecs_services() {
     echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/wildlife${NC}"
 }
 
-configure_iam() {
-    echo -e "${GREEN}Configuring IAM Permissions...${NC}"
+fix_image_upload() {
+    echo -e "${GREEN}Fixing Image Upload...${NC}"
     aws iam attach-role-policy \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
         --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-s3
@@ -449,19 +451,80 @@ configure_iam() {
         --service REPLACE_PREFIX_CODE-media-service \
         --force-new-deployment \
         --no-cli-pager
-    echo -e "${GREEN}✅ IAM permissions configured${NC}"
+    echo -e "${GREEN}✅ Image Upload Fixed${NC}"
 }
 
-update_lambda_config() {
-    echo -e "${GREEN}Updating Lambda Configuration...${NC}"
+fix_gps_data() {
+    echo -e "${GREEN}Fixing GPS data...${NC}"
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
     aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
-    echo -e "${GREEN}✅ Lambda configuration updated${NC}"
+    echo -e "${GREEN}✅ GPS Data Fixed${NC}"
 }
 
 create_efs_storage() {
-    echo -e "${YELLOW}⚠️  EFS storage attachment not implemented yet${NC}"
-    echo "This would attach EFS volumes to the data service"
+    echo -e "${GREEN}Creating EFS Storage...${NC}"
+    
+    aws iam attach-role-policy \
+        --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
+        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-efs \
+        --no-cli-pager
+    
+    EFS_ID=$(aws efs create-file-system \
+        --creation-token REPLACE_PREFIX_CODE-mongodb-$(date +%s) \
+        --performance-mode generalPurpose \
+        --throughput-mode provisioned \
+        --provisioned-throughput-in-mibps 100 \
+        --encrypted \
+        --tags Key=Name,Value=REPLACE_PREFIX_CODE-mongodb-efs \
+        --query 'FileSystemId' \
+        --output text)
+    
+    echo "Waiting for EFS to be available..."
+    aws efs wait file-system-available --file-system-id $EFS_ID
+    
+    aws efs create-mount-target \
+        --file-system-id $EFS_ID \
+        --subnet-id REPLACE_PRIVATE_SUBNET_1 \
+        --security-groups REPLACE_SECURITY_GROUP_APP \
+        --no-cli-pager
+    
+    aws efs create-mount-target \
+        --file-system-id $EFS_ID \
+        --subnet-id REPLACE_PRIVATE_SUBNET_2 \
+        --security-groups REPLACE_SECURITY_GROUP_APP \
+        --no-cli-pager
+    
+    echo "Waiting for mount targets to be available..."
+    until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets[?LifeCycleState==`available`])' --output text)" = "2" ]; do sleep 5; done
+    
+    ACCESS_POINT_ID=$(aws efs create-access-point \
+        --file-system-id $EFS_ID \
+        --posix-user Uid=999,Gid=999 \
+        --root-directory Path=/mongodb,CreationInfo='{OwnerUid=999,OwnerGid=999,Permissions=755}' \
+        --tags Key=Name,Value=REPLACE_PREFIX_CODE-mongodb-access-point \
+        --query 'AccessPointId' \
+        --output text)
+    
+    sed -i "s/REPLACE_WITH_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+    
+    aws ecs register-task-definition \
+        --cli-input-json file:///home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json \
+        --no-cli-pager
+    
+    aws ecs update-service \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --service REPLACE_PREFIX_CODE-datadb-service \
+        --task-definition REPLACE_PREFIX_CODE-datadb-task \
+        --force-new-deployment \
+        --no-cli-pager
+    
+    echo "Waiting for service to stabilize..."
+    aws ecs wait services-stable \
+        --cluster REPLACE_PREFIX_CODE-ecs \
+        --services REPLACE_PREFIX_CODE-datadb-service \
+        --region REPLACE_AWS_REGION
+    
+    echo -e "${GREEN}✅ EFS Storage created and configured${NC}"
 }
 
 deploy_adot() {
@@ -550,7 +613,10 @@ full_setup() {
         register_task_definitions && \
         create_load_balancer && \
         create_ecs_services && \
-        configure_iam
+        fix_image_upload && \
+        fix_gps_data && \
+        configure_iam && \
+        create_efs_storage
         echo -e "${GREEN}✅ Full setup completed!${NC}"
     else
         echo "Setup cancelled"
@@ -670,6 +736,31 @@ cleanup_vpc_endpoints() {
     echo -e "${GREEN}✅ VPC Endpoints deleted${NC}"
 }
 
+cleanup_efs() {
+    echo -e "${RED}Deleting EFS Storage...${NC}"
+    EFS_FILESYSTEMS=$(aws efs describe-file-systems --query 'FileSystems[?Tags[?Key==`Name` && contains(Value, `REPLACE_PREFIX_CODE-mongodb-efs`)]].FileSystemId' --output text 2>/dev/null)
+    for EFS_ID in $EFS_FILESYSTEMS; do
+        echo "Deleting access points for $EFS_ID..."
+        ACCESS_POINTS=$(aws efs describe-access-points --file-system-id $EFS_ID --query 'AccessPoints[].AccessPointId' --output text 2>/dev/null)
+        for AP_ID in $ACCESS_POINTS; do
+            aws efs delete-access-point --access-point-id $AP_ID --no-cli-pager 2>/dev/null
+        done
+        
+        echo "Deleting mount targets for $EFS_ID..."
+        MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'MountTargets[].MountTargetId' --output text 2>/dev/null)
+        for MT_ID in $MOUNT_TARGETS; do
+            aws efs delete-mount-target --mount-target-id $MT_ID --no-cli-pager 2>/dev/null
+        done
+        
+        echo "Waiting for mount targets to be deleted..."
+        until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets)' --output text 2>/dev/null)" = "0" ]; do sleep 5; done
+        
+        echo "Deleting file system $EFS_ID..."
+        aws efs delete-file-system --file-system-id $EFS_ID --no-cli-pager 2>/dev/null
+    done
+    echo -e "${GREEN}✅ EFS Storage deleted${NC}"
+}
+
 cleanup_ecr() {
     echo -e "${RED}Deleting ECR Repositories...${NC}"
     for REPO in wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media; do
@@ -700,18 +791,19 @@ full_cleanup() {
     read confirm
     if [ "$confirm" = "DELETE" ]; then
         echo -e "${RED}🔥 Starting complete infrastructure cleanup...${NC}"
-        cleanup_services
-        cleanup_load_balancer
-        cleanup_cluster
-        cleanup_asg
-        cleanup_task_definitions
-        cleanup_vpc_endpoints
-        cleanup_ecr
+        cleanup_services && \
+        cleanup_load_balancer && \
+        cleanup_cluster && \
+        cleanup_asg && \
+        cleanup_task_definitions && \
+        cleanup_vpc_endpoints && \
+        cleanup_efs && \
+        cleanup_ecr && \
         cleanup_docker
         
         echo ""
         echo -e "${GREEN}🎯 Complete cleanup finished!${NC}"
-        echo -e "${YELLOW}Note: VPC, subnets, security groups, and IAM roles were preserved${NC}"
+        echo -e "${YELLOW}Note: CloudFormation deployed resources remain${NC}"
     else
         echo "Cleanup cancelled"
     fi
