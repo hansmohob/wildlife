@@ -73,8 +73,8 @@ ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
 
 def handle_image_upload(file):
     """Handle image upload to S3"""
-    if not file.filename:
-        logger.warning("No filename provided")
+    if not file.filename or file.filename == 'image':
+        logger.warning("No filename provided or empty file input")
         return None
     
     try:

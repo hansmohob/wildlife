@@ -9,127 +9,148 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration file path
-CONFIG_FILE="$(dirname "$0")/menu-config.txt"
+# Execution tracking
+declare -A EXECUTION_COUNT=()
 
 show_header() {
     clear
-    echo -e "${PURPLE}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║                    🦁 WILDLIFE INFRASTRUCTURE MENU 🦁          ║${NC}"
-    echo -e "${PURPLE}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${PURPLE}================================================================${NC}"
+    echo -e "${PURPLE}                    WILDLIFE INFRASTRUCTURE MENU                 ${NC}"
+    echo -e "${PURPLE}================================================================${NC}"
     echo ""
 }
 
-load_menu_config() {
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${RED}Error: Configuration file $CONFIG_FILE not found!${NC}"
-        echo "Creating default configuration..."
-        create_default_config
-    fi
-}
+# =============================================================================
+# MENU CONFIGURATION - JUST ADD FUNCTIONS HERE!
+# =============================================================================
+# Format: "FUNCTION_NAME|DISPLAY_TEXT|SECTION"
+# Sections: SETUP, QUICK, ADVANCED, CLEANUP
+# The menu will auto-number and auto-discover these functions
 
-create_default_config() {
-    cat > "$CONFIG_FILE" << 'EOF'
-# Wildlife Infrastructure Menu Configuration
-# Format: OPTION_NUMBER|DISPLAY_TEXT|COMMAND_TO_RUN
-# Lines starting with # are comments
-# Empty lines are ignored
-
-# Setup Commands
-SECTION|📋 SETUP COMMANDS:
-1|Create ECR Repositories|create_ecr_repos|
-2|Build Container Images|build_images|
-3|Push Images to ECR|push_images|
-4|Setup VPC Endpoints|setup_vpc_endpoints|
-5|Deploy ECS Cluster|deploy_ecs_cluster|
-6|Register Task Definitions|register_task_definitions|
-7|Create Load Balancer|create_load_balancer|
-8|Create ECS Services|create_ecs_services|
-9|Configure IAM Permissions|configure_iam|
-
-# Quick Actions
-SECTION|🚀 QUICK ACTIONS:
-10|Run Full Setup (1-9)|run_full_setup|
-11|Check Deployment Status|check_status|
-12|Show Application URL|show_app_url|
-13|Update Lambda Configuration|update_lambda_config|
-
-# Advanced Features
-SECTION|⚡ ADVANCED FEATURES:
-15|Deploy ADOT (OpenTelemetry)|deploy_adot|
-16|Create EBS Storage|create_ebs_storage|
-17|Create EFS Storage|create_efs_storage|
-
-# Cleanup Commands
-SECTION|🔥 CLEANUP COMMANDS:
-20|Delete ECS Services|cleanup_services|
-21|Delete Load Balancer|cleanup_load_balancer|
-22|Delete ECS Cluster|cleanup_cluster|
-23|Delete Auto Scaling Group|cleanup_asg|
-24|Delete Task Definitions|cleanup_task_definitions|
-25|Delete VPC Endpoints|cleanup_vpc_endpoints|
-26|Delete ECR Repositories|cleanup_ecr|
-27|Clean Docker Images|cleanup_docker|
-28|Full Cleanup (All)|full_cleanup|
-
-# Exit
-SECTION|
-0|Exit|exit_menu|
-EOF
-    echo -e "${GREEN}Default configuration created at $CONFIG_FILE${NC}"
-    echo "You can now edit this file to customize the menu!"
-}
+declare -a MENU_ITEMS=(
+    # SETUP COMMANDS
+    "create_ecr_repos|Create ECR Repositories|SETUP"
+    "build_images|Build Container Images|SETUP"
+    "push_images|Push Images to ECR|SETUP"
+    "setup_vpc_endpoints|Setup VPC Endpoints|SETUP"
+    "deploy_ecs_cluster|Deploy ECS Cluster|SETUP"
+    "register_task_definitions|Register Task Definitions|SETUP"
+    "create_load_balancer|Create Load Balancer|SETUP"
+    "create_ecs_services|Create ECS Services|SETUP"
+    "configure_iam|Configure IAM Permissions|SETUP"
+    "update_lambda_config|Update Lambda Configuration|SETUP"
+    
+    # QUICK ACTIONS
+    "run_full_setup|Run Full Setup (All Setup Commands)|QUICK"
+    "check_status|Check Deployment Status|QUICK"
+    "show_app_url|Show Application URL|QUICK"
+    
+    # ADVANCED FEATURES
+    "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
+    "create_ebs_storage|Create EBS Storage|ADVANCED"
+    "create_efs_storage|Create EFS Storage|ADVANCED"
+    
+    # CLEANUP COMMANDS
+    "cleanup_services|Delete ECS Services|CLEANUP"
+    "cleanup_load_balancer|Delete Load Balancer|CLEANUP"
+    "cleanup_cluster|Delete ECS Cluster|CLEANUP"
+    "cleanup_asg|Delete Auto Scaling Group|CLEANUP"
+    "cleanup_task_definitions|Delete Task Definitions|CLEANUP"
+    "cleanup_vpc_endpoints|Delete VPC Endpoints|CLEANUP"
+    "cleanup_ecr|Delete ECR Repositories|CLEANUP"
+    "cleanup_docker|Clean Docker Images|CLEANUP"
+    "full_cleanup|Full Cleanup (All Cleanup Commands)|CLEANUP"
+)
 
 show_menu() {
-    load_menu_config
+    declare -A menu_numbers
+    local counter=1
+    local current_section=""
     
-    while IFS='|' read -r option text command section; do
-        # Skip comments and empty lines
-        [[ $option =~ ^#.*$ ]] && continue
-        [[ -z "$option" ]] && continue
+    # Build menu with auto-numbering (zero-padded)
+    for item in "${MENU_ITEMS[@]}"; do
+        IFS='|' read -r func_name display_text section <<< "$item"
         
-        if [[ "$option" == "SECTION" ]]; then
-            echo -e "${CYAN}$text${NC}"
-        else
-            echo -e "  ${GREEN}$option)${NC} $text"
+        # Show section header if changed
+        if [ "$section" != "$current_section" ]; then
+            echo ""
+            case $section in
+                "SETUP") echo -e "${CYAN}SETUP COMMANDS:${NC}" ;;
+                "QUICK") echo -e "${YELLOW}QUICK ACTIONS:${NC}" ;;
+                "ADVANCED") echo -e "${BLUE}ADVANCED FEATURES:${NC}" ;;
+                "CLEANUP") echo -e "${RED}CLEANUP COMMANDS:${NC}" ;;
+            esac
+            current_section="$section"
         fi
-    done < "$CONFIG_FILE"
+        
+        # Store mapping and display menu item with zero-padded numbers
+        local padded_number=$(printf "%02d" $counter)
+        menu_numbers[$counter]="$func_name"
+        
+        # Add execution counter display
+        local count_display=""
+        if [[ ${EXECUTION_COUNT["$func_name"]} -gt 0 ]]; then
+            count_display=" ${YELLOW}(${EXECUTION_COUNT["$func_name"]}x)${NC}"
+        fi
+        echo -e "  ${GREEN}$padded_number)${NC} $display_text$count_display"
+        ((counter++))
+    done
     
     echo ""
+    echo -e "${BLUE}00)${NC} Exit"
+    echo ""
     echo -n -e "${CYAN}Enter your choice: ${NC}"
+    
+    # Export the mapping for execute_command to use
+    declare -p menu_numbers > /tmp/menu_mapping.sh
 }
 
 execute_command() {
     local choice=$1
-    load_menu_config
     
-    while IFS='|' read -r option text command section; do
-        # Skip comments, empty lines, and sections
-        [[ $option =~ ^#.*$ ]] && continue
-        [[ -z "$option" ]] && continue
-        [[ "$option" == "SECTION" ]] && continue
+    # Load the menu mapping
+    source /tmp/menu_mapping.sh 2>/dev/null
+    
+    # Handle exit (accept both 0 and 00)
+    if [ "$choice" = "0" ] || [ "$choice" = "00" ]; then
+        echo -e "${GREEN}Goodbye!${NC}"
+        exit 0
+    fi
+    
+    # Convert input to number (removes leading zeros) - handle non-numeric input
+    local numeric_choice
+    if [[ "$choice" =~ ^[0-9]+$ ]]; then
+        numeric_choice=$((10#$choice))
+    else
+        numeric_choice=0
+    fi
+    
+    # Get function name from mapping
+    local func_name="${menu_numbers[$numeric_choice]}"
+    
+    if [ -z "$func_name" ]; then
+        echo -e "${RED}Invalid option: $choice${NC}"
+        return 1
+    fi
+    
+    # Check if function exists and execute it
+    if declare -f "$func_name" > /dev/null; then
+        echo -e "${YELLOW}Executing: $func_name${NC}"
+        echo ""
+        $func_name
         
-        if [[ "$option" == "$choice" ]]; then
-            echo -e "${YELLOW}Executing: $text${NC}"
-            echo ""
-            
-            # Check if function exists, if not, show placeholder
-            if declare -f "$command" > /dev/null; then
-                $command
-            else
-                echo -e "${YELLOW}⚠️  Command '$command' not implemented yet${NC}"
-                echo "Add the function '$command()' to this script to implement this feature."
-            fi
-            return 0
-        fi
-    done < "$CONFIG_FILE"
+        # Increment execution counter
+        ((EXECUTION_COUNT["$func_name"]++))
+    else
+        echo -e "${YELLOW}Function '$func_name' not implemented yet${NC}"
+        echo "Add the function '$func_name()' to this script to implement this feature."
+    fi
     
-    echo -e "${RED}Invalid option: $choice${NC}"
-    return 1
+    return 0
 }
 
 # =============================================================================
-# COMMAND IMPLEMENTATIONS - ALL COMMANDS FROM FAST-FORWARD.SH
+# BUILD COMMANDS
 # =============================================================================
 
 create_ecr_repos() {
@@ -317,7 +338,7 @@ create_ecs_services() {
         --cluster wildlife-ecs \
         --service-name wildlife-datadb-service \
         --task-definition wildlife-datadb-task \
-        --desired-count 2 \
+        --desired-count 1 \
         --capacity-provider-strategy capacityProvider=wildlife-capacity-ec2,weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[subnet-0c7f5d372c67a77ce,subnet-0e3eef21394b6c8d7],securityGroups=[sg-0f1504a2e29ffd007],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/wildlife-app,awslogs-region=us-west-2,awslogs-stream-prefix=wildlife}}" \
@@ -408,8 +429,8 @@ create_ecs_services() {
             break
         fi
         
-        echo "Checking again in 15 seconds..."
-        sleep 15
+        echo "Checking again in 30 seconds..."
+        sleep 30
         echo ""
     done
 
@@ -543,7 +564,7 @@ run_full_setup() {
 }
 
 # =============================================================================
-# CLEANUP COMMAND IMPLEMENTATIONS - ALL COMMANDS FROM FAST-DESTROY.SH
+# CLEANUP COMMANDS
 # =============================================================================
 
 cleanup_services() {
@@ -710,9 +731,6 @@ exit_menu() {
 # =============================================================================
 # MAIN MENU LOOP
 # =============================================================================
-
-# Create config file if it doesn't exist
-load_menu_config
 
 while true; do
     show_header
