@@ -39,15 +39,7 @@ declare -a MENU_ITEMS=(
     "create_ecs_services|Create ECS Services|SETUP"
     "configure_iam|Configure IAM Permissions|SETUP"
     "update_lambda_config|Update Lambda Configuration|SETUP"
-    "create_efs_storage|Create EFS Storage|ADVANCED"
-    
-    # QUICK ACTIONS
-    "run_full_setup|Run Full Setup (All Setup Commands)|QUICK"
-    "check_status|Check Deployment Status|QUICK"
-    "show_app_url|Show Application URL|QUICK"
-    
-    # ADVANCED FEATURES
-    "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
+    "create_efs_storage|Create EFS Storage|SETUP"
     
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
@@ -58,7 +50,15 @@ declare -a MENU_ITEMS=(
     "cleanup_vpc_endpoints|Delete VPC Endpoints|CLEANUP"
     "cleanup_ecr|Delete ECR Repositories|CLEANUP"
     "cleanup_docker|Clean Docker Images|CLEANUP"
-    "full_cleanup|Full Cleanup (All Cleanup Commands)|CLEANUP"
+
+    # QUICK ACTIONS
+    "full_setup|Run Full Setup (All Setup Commands)|QUICK"
+    "check_status|Check Deployment Status|QUICK"
+    "show_app_url|Show Application URL|QUICK"
+    "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
+
+    # ADVANCED FEATURES
+    "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
 )
 
 show_menu() {
@@ -536,7 +536,7 @@ show_app_url() {
     fi
 }
 
-run_full_setup() {
+full_setup() {
     echo -e "${GREEN}Running Full Setup...${NC}"
     echo "This will run commands 1-9 in sequence"
     echo -n "Continue? (y/n): "
