@@ -39,6 +39,7 @@ declare -a MENU_ITEMS=(
     "create_ecs_services|Create ECS Services|SETUP"
     "configure_iam|Configure IAM Permissions|SETUP"
     "update_lambda_config|Update Lambda Configuration|SETUP"
+    "create_efs_storage|Create EFS Storage|ADVANCED"
     
     # QUICK ACTIONS
     "run_full_setup|Run Full Setup (All Setup Commands)|QUICK"
@@ -47,8 +48,6 @@ declare -a MENU_ITEMS=(
     
     # ADVANCED FEATURES
     "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
-    "create_ebs_storage|Create EBS Storage|ADVANCED"
-    "create_efs_storage|Create EFS Storage|ADVANCED"
     
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
@@ -460,6 +459,11 @@ update_lambda_config() {
     echo -e "${GREEN}✅ Lambda configuration updated${NC}"
 }
 
+create_efs_storage() {
+    echo -e "${YELLOW}⚠️  EFS storage attachment not implemented yet${NC}"
+    echo "This would attach EFS volumes to the data service"
+}
+
 deploy_adot() {
     echo -e "${GREEN}Deploying AWS Distro for OpenTelemetry (ADOT)...${NC}"
     echo "This will update task definitions to v2 with ADOT sidecar containers..."
@@ -495,16 +499,6 @@ deploy_adot() {
     aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --task-definition REPLACE_PREFIX_CODE-media-task --force-new-deployment --no-cli-pager
 
     echo -e "${GREEN}✅ ADOT deployment completed${NC}"
-}
-
-create_ebs_storage() {
-    echo -e "${YELLOW}⚠️  EBS storage attachment not implemented yet${NC}"
-    echo "This would attach EBS volumes to the data service"
-}
-
-create_efs_storage() {
-    echo -e "${YELLOW}⚠️  EFS storage attachment not implemented yet${NC}"
-    echo "This would attach EFS volumes to the data service"
 }
 
 check_status() {
