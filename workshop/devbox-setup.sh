@@ -377,10 +377,11 @@ perl -i -pe "BEGIN{undef $/;}
     s/REPLACE_PUBLIC_SUBNET_1/${PUBLIC_SUBNET_1}/g; 
     s/REPLACE_PUBLIC_SUBNET_2/${PUBLIC_SUBNET_2}/g; 
     s/REPLACE_SECURITY_GROUP_APP/${SECURITY_GROUP_APP}/g; 
-    s/REPLACE_SECURITY_GROUP_ALB/${SECURITY_GROUP_ALB}/g;" \
+    s/REPLACE_SECURITY_GROUP_ALB/${SECURITY_GROUP_ALB}/g;"
+    s/REPLACE_S3_BUCKET_WILDLIFE/${S3_BUCKET_WILDLIFE}/g;" \
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
-        -name "fast-forward.sh")
+        -name "menu-start.sh")
 
 su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m \"Update env\" && git push origin main"
 ' "Failed to replace environment variables or commit changes"
@@ -398,6 +399,9 @@ echo "INFO: Installation summary:"
 echo "----------------------------------------"
 cat $STATUS_FILE
 echo "----------------------------------------"
+
+# Make menu system executable
+chmod +x /home/ec2-user/workspace/my-workspace/workshop/menu-start.sh
 
 # Check if any steps failed
 if grep -q "\[FAILED\]" $STATUS_FILE; then

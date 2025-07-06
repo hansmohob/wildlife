@@ -31,7 +31,7 @@
                 },
                 {
                 "name": "BUCKET_NAME",
-                "value": "REPLACE_S3_BUCKET_NAME"
+                "value": "REPLACE_S3_BUCKET_WILDLIFE"
                 },
                 {
                 "name": "AWS_REGION",
