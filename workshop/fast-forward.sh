@@ -159,7 +159,6 @@ aws ecs create-service \
     --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
     --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
     --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=wildlife-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
-    --placement-constraints "type=distinctInstance" \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
@@ -214,7 +213,7 @@ aws ecs create-service \
     --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
     --no-cli-pager
 
-### do something like congratulations your applciation is up connect to it using thei url
+echo "Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/wildlife"
 ### END: 08 Create Services (ECS) ###
 
 ### START: 09 Modify Task Role (ECS) ###
