@@ -352,7 +352,7 @@ After=network.target mongod.service
 
 [Service]
 User=ec2-user
-Environment="PREFIX_CODE=${PREFIX_CODE}" "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" "BUCKET_NAME=${S3_BUCKET_PROJECT}" "AWS_REGION=${AWS_REGION}"
+Environment="PREFIX_CODE=${PREFIX_CODE}" "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" "BUCKET_NAME=${S3_BUCKET_WILDLIFE}" "AWS_REGION=${AWS_REGION}"
 WorkingDirectory=/home/ec2-user/workspace/my-workspace/app-ec2
 ExecStart=/usr/bin/python3 app.py
 Restart=always
