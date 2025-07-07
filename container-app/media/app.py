@@ -73,9 +73,18 @@ ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
 
 def handle_image_upload(file):
     """Handle image upload to S3"""
-    if not file.filename or file.filename == 'image':
-        logger.warning("No filename provided or empty file input")
+    if not file.filename or file.filename == '':
+        logger.warning("No filename provided")
         return None
+    
+    # Read the file content to check if it's empty
+    file_content = file.read()
+    if len(file_content) == 0:
+        logger.warning("Empty file provided")
+        return None
+    
+    # Reset file pointer to beginning for upload
+    file.seek(0)
     
     try:
         # For files with no extension (like 'image' from form)
@@ -89,7 +98,7 @@ def handle_image_upload(file):
         logger.info(f"Uploading image to S3: {filename}")
         
         # Ensure content_type is not None
-        content_type = getattr(file, 'content_type', None) or 'image/jpeg'
+        content_type = file.content_type or 'image/jpeg'
         
         s3.upload_fileobj(
             file,
