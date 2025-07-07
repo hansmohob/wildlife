@@ -602,7 +602,7 @@ show_app_url() {
 
 full_setup() {
     echo -e "${GREEN}Running Full Setup...${NC}"
-    echo "This will run commands 1-9 in sequence"
+    echo "This will all setup commands in sequence"
     echo -n "Continue? (y/n): "
     read confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
@@ -616,7 +616,6 @@ full_setup() {
         create_ecs_services && \
         fix_image_upload && \
         fix_gps_data && \
-        configure_iam && \
         create_efs_storage
         echo -e "${GREEN}✅ Full setup completed!${NC}"
     else
@@ -693,6 +692,16 @@ cleanup_cluster() {
     
     echo "Deleting capacity provider..."
     aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager
+
+    echo "Waiting for cluster to be ready for deletion..."
+    while true; do
+        if aws ecs delete-cluster --cluster wildlife-ecs --no-cli-pager 2>/dev/null; then
+            break
+        else
+            echo "Cluster still busy, waiting 30 seconds..."
+            sleep 30
+        fi
+    done
     
     echo "Deleting cluster..."
     aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
@@ -758,6 +767,9 @@ cleanup_efs() {
         
         echo "Deleting file system $EFS_ID..."
         aws efs delete-file-system --file-system-id $EFS_ID --no-cli-pager 2>/dev/null
+
+        echo "Resetting task definition placeholder..."
+        sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
     done
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
 }
