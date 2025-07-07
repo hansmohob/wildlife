@@ -442,7 +442,7 @@ create_ecs_services() {
 fix_image_upload() {
     echo -e "${GREEN}Fixing Image Upload...${NC}"
     aws iam attach-role-policy \
-        --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
+        --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
         --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-s3
 
     echo "Forcing new deployment for media service..."
@@ -465,7 +465,7 @@ create_efs_storage() {
     echo -e "${GREEN}Creating EFS Storage...${NC}"
     
     aws iam attach-role-policy \
-        --role-name REPLACE_PREFIX_CODE-iamrole-ecstask-standard \
+        --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
         --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-efs \
         --no-cli-pager
     
