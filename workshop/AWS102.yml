@@ -2492,7 +2492,7 @@ Resources:
   iamroleecstaskexecution:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${PrefixCode}-iamrole-ecstaskexecution
+      RoleName: !Sub ${PrefixCode}-iamrole-ecs-task-execution
       Description: ECS task execution role
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -2535,7 +2535,7 @@ Resources:
                 Resource: arn:aws:logs:*:*:*
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-iamrole-ecstaskexecution
+          Value: !Sub ${PrefixCode}-iamrole-ecs-task-execution
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -2548,7 +2548,7 @@ Resources:
   iamroleecstask:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${PrefixCode}-iamrole-ecstask-standard
+      RoleName: !Sub ${PrefixCode}-iamrole-ecs-task
       Description: ECS task role
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -2595,7 +2595,7 @@ Resources:
                   - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-iamrole-ecstask-standard
+          Value: !Sub ${PrefixCode}-iamrole-ecs-task
         - Key: provisioner
           Value: CFN
         - Key: solution

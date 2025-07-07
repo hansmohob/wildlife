@@ -480,8 +480,12 @@ create_efs_storage() {
         --output text)
     
     echo "Waiting for EFS to be available..."
-    aws efs wait file-system-available --file-system-id $EFS_ID
-    
+    until [ "$(aws efs describe-file-systems --file-system-id $EFS_ID --query 'FileSystems[0].LifeCycleState' --output text)" = "available" ]; do 
+        echo "EFS still creating, waiting..."
+        sleep 10
+    done
+
+    echo "Creating mount targets..."   
     aws efs create-mount-target \
         --file-system-id $EFS_ID \
         --subnet-id REPLACE_PRIVATE_SUBNET_1 \
@@ -493,20 +497,17 @@ create_efs_storage() {
         --subnet-id REPLACE_PRIVATE_SUBNET_2 \
         --security-groups REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
-    
+
     echo "Waiting for mount targets to be available..."
-    until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets[?LifeCycleState==`available`])' --output text)" = "2" ]; do sleep 5; done
-    
-    ACCESS_POINT_ID=$(aws efs create-access-point \
-        --file-system-id $EFS_ID \
-        --posix-user Uid=999,Gid=999 \
-        --root-directory Path=/mongodb,CreationInfo='{OwnerUid=999,OwnerGid=999,Permissions=755}' \
-        --tags Key=Name,Value=REPLACE_PREFIX_CODE-mongodb-access-point \
-        --query 'AccessPointId' \
-        --output text)
-    
-    sed -i "s/REPLACE_WITH_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
-    
+    until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets[?LifeCycleState==`available`])' --output text)" = "2" ]; do 
+        echo "Mount targets still creating, waiting..."
+        sleep 10
+    done
+
+    echo "Updating task definition with EFS ID: $EFS_ID !MAKE SURE FILE IS CLOSED!"
+    sleep 10
+    sed -i "s/REPLACE_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+
     aws ecs register-task-definition \
         --cli-input-json file:///home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json \
         --no-cli-pager

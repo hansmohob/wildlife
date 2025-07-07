@@ -8,8 +8,8 @@
         "cpuArchitecture": "ARM64"
     },
     "networkMode": "awsvpc",
-    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstaskexecution",
-    "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecstask-standard",
+    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-ecs-task-execution",
+    "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecs-task",
     "containerDefinitions": [
         {
             "name": "wildlife-datadb",
@@ -76,7 +76,7 @@
             "name": "mongodb-data",
             "efsVolumeConfiguration": {
                 "fileSystemId": "REPLACE_EFS_ID",
-                "rootDirectory": "/mongodb",
+                "rootDirectory": "/",
                 "transitEncryption": "ENABLED",
                 "authorizationConfig": {
                     "iam": "ENABLED"
