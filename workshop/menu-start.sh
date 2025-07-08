@@ -602,7 +602,7 @@ show_app_url() {
 
 full_setup() {
     echo -e "${GREEN}Running Full Setup...${NC}"
-    echo "This will all setup commands in sequence"
+    echo "This will run all setup commands in sequence"
     echo -n "Continue? (y/n): "
     read confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
