@@ -72,8 +72,7 @@ EXEC_cleanup_vpc_endpoints=0
 EXEC_cleanup_efs=0
 EXEC_cleanup_ecr=0
 EXEC_cleanup_docker=0
-EXEC_full_setup=0
-EXEC_check_status=0
+EXEC_full_build=0
 EXEC_show_app_url=0
 EXEC_run_service_scaling_test=0
 EXEC_full_cleanup=0
@@ -87,7 +86,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url run_service_scaling_test full_cleanup deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test full_cleanup deploy_adot; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -121,23 +120,31 @@ show_header() {
 # MENU CONFIGURATION - JUST ADD FUNCTIONS HERE!
 # =============================================================================
 # Format: "FUNCTION_NAME|DISPLAY_TEXT|SECTION"
-# Sections: SETUP, CLEANUP, QUICK, ADVANCED
+# Sections: BUILD, OPERATE, CLEANUP, QUICK, ADVANCED
 # The menu will auto-number and auto-discover these functions
 
 declare -a MENU_ITEMS=(
-    # SETUP COMMANDS
-    "create_ecr_repos|Create ECR Repositories|SETUP"
-    "build_images|Build Container Images|SETUP"
-    "push_images|Push Images to ECR|SETUP"
-    "setup_vpc_endpoints|Setup VPC Endpoints|SETUP"
-    "deploy_ecs_cluster|Deploy ECS Cluster|SETUP"
-    "register_task_definitions|Register Task Definitions|SETUP"
-    "create_load_balancer|Create Load Balancer|SETUP"
-    "create_ecs_services|Create ECS Services|SETUP"
-    "fix_image_upload|Fix Image Upload|SETUP"
-    "fix_gps_data|Fix GPS Data|SETUP"
-    "create_efs_storage|Create EFS Storage|SETUP"
-    "configure_service_scaling|Configure Service Auto Scaling|SETUP"
+    # BUILD COMMANDS
+    "create_ecr_repos|Create ECR Repositories|BUILD"
+    "build_images|Build Container Images|BUILD"
+    "push_images|Push Images to ECR|BUILD"
+    "setup_vpc_endpoints|Setup VPC Endpoints|BUILD"
+    "deploy_ecs_cluster|Deploy ECS Cluster|BUILD"
+    "register_task_definitions|Register Task Definitions|BUILD"
+    "create_load_balancer|Create Load Balancer|BUILD"
+    "create_ecs_services|Create ECS Services|BUILD"
+    "fix_image_upload|Fix Image Upload|BUILD"
+    "fix_gps_data|Fix GPS Data|BUILD"
+    "create_efs_storage|Create EFS Storage|BUILD"
+
+    # OPERATE COMMANDS
+    "configure_service_scaling|Configure Service Auto Scaling|OPERATE"
+    
+    # QUICK ACTIONS
+    "show_app_url|Show Application URL|QUICK"
+    "run_service_scaling_test|Run Service Scaling Test|QUICK"
+    "full_build|Full Build (All Build Commands)|QUICK"
+    "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
     
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
@@ -149,13 +156,6 @@ declare -a MENU_ITEMS=(
     "cleanup_efs|Delete EFS Storage|CLEANUP"
     "cleanup_ecr|Delete ECR Repositories|CLEANUP"
     "cleanup_docker|Clean Docker Images|CLEANUP"
-
-    # QUICK ACTIONS
-    "full_setup|Full Setup (All Setup Commands)|QUICK"
-    "check_status|Check Deployment Status|QUICK"
-    "show_app_url|Show Application URL|QUICK"
-    "run_service_scaling_test|Run Service Scaling Test|QUICK"
-    "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
 
     # ADVANCED FEATURES
     "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
@@ -174,7 +174,8 @@ show_menu() {
         if [ "$section" != "$current_section" ]; then
             echo ""
             case $section in
-                "SETUP") echo -e "${CYAN}SETUP COMMANDS:${NC}" ;;
+                "BUILD") echo -e "${CYAN}BUILD COMMANDS:${NC}" ;;
+                "OPERATE") echo -e "${GREEN}OPERATE COMMANDS:${NC}" ;;
                 "CLEANUP") echo -e "${RED}CLEANUP COMMANDS:${NC}" ;;
                 "QUICK") echo -e "${YELLOW}QUICK ACTIONS:${NC}" ;;
                 "ADVANCED") echo -e "${BLUE}ADVANCED FEATURES:${NC}" ;;
@@ -794,9 +795,9 @@ run_service_scaling_test() {
     ALB_URL="http://$ALB_DNS" k6 run loadtest-service-scaling.js
 }
 
-full_setup() {
-    echo -e "${GREEN}Running Full Setup...${NC}"
-    echo "This will run all setup commands in sequence"
+full_build() {
+    echo -e "${GREEN}Running Full Build...${NC}"
+    echo "This will run all build commands in sequence"
     
     if [ "$CI_MODE" = "true" ]; then
         confirm="y"
