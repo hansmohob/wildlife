@@ -339,7 +339,7 @@ deploy_ecs_cluster() {
         --version-description 1 \
         --launch-template-data "{
             \"ImageId\": \"$ECS_AMI_ID\",
-            \"InstanceType\": \"t4g.medium\",
+            \"InstanceType\": \"t4g.small\",
             \"UserData\": \"$USERDATA\",
             \"IamInstanceProfile\": {
                 \"Name\": \"REPLACE_PREFIX_CODE-iamprofile-ecs\"
