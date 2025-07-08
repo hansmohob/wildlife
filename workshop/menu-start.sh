@@ -526,6 +526,7 @@ create_efs_storage() {
         --region REPLACE_AWS_REGION
     
     echo -e "${GREEN}✅ EFS Storage created and configured${NC}"
+    echo -e "${CYAN}EFS ID: $EFS_ID${NC}"
 }
 
 deploy_adot() {
@@ -673,6 +674,31 @@ cleanup_load_balancer() {
 cleanup_cluster() {
     echo -e "${RED}Deleting ECS Cluster...${NC}"
     
+    echo "Checking cluster state..."
+    CLUSTER_STATUS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null)
+    if [ "$CLUSTER_STATUS" = "None" ] || [ "$CLUSTER_STATUS" = "" ]; then
+        echo "Cluster not found or already deleted"
+        return 0
+    fi
+    
+    echo "Waiting for cluster to be in a stable state..."
+    while true; do
+        CLUSTER_STATUS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null)
+        ACTIVE_SERVICES=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].activeServicesCount' --output text 2>/dev/null)
+        RUNNING_TASKS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].runningTasksCount' --output text 2>/dev/null)
+        PENDING_TASKS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].pendingTasksCount' --output text 2>/dev/null)
+        
+        echo "Cluster status: $CLUSTER_STATUS, Active services: $ACTIVE_SERVICES, Running tasks: $RUNNING_TASKS, Pending tasks: $PENDING_TASKS"
+        
+        if [ "$CLUSTER_STATUS" = "ACTIVE" ] && [ "$ACTIVE_SERVICES" = "0" ] && [ "$RUNNING_TASKS" = "0" ] && [ "$PENDING_TASKS" = "0" ]; then
+            echo "Cluster is ready for deletion"
+            break
+        fi
+        
+        echo "Cluster still busy, waiting 30 seconds..."
+        sleep 30
+    done
+    
     echo "Deregistering container instances..."
     CONTAINER_INSTANCES=$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'containerInstanceArns[]' --output text 2>/dev/null)
     if [ "$CONTAINER_INSTANCES" != "" ]; then
@@ -683,25 +709,21 @@ cleanup_cluster() {
         echo "Waiting for container instances to deregister..."
         while [ "$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'length(containerInstanceArns)' --output text 2>/dev/null)" != "0" ]; do
             echo "Container instances still active, waiting..."
-            sleep 5
+            sleep 10
         done
     fi
 
     echo "Removing capacity providers..."
-    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager
+    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
+    
+    echo "Waiting for capacity provider update to complete..."
+    sleep 10
     
     echo "Deleting capacity provider..."
-    aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager
-
-    echo "Waiting for cluster to be ready for deletion..."
-    while true; do
-        if aws ecs delete-cluster --cluster wildlife-ecs --no-cli-pager 2>/dev/null; then
-            break
-        else
-            echo "Cluster still busy, waiting 30 seconds..."
-            sleep 30
-        fi
-    done
+    aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager 2>/dev/null
+    
+    echo "Final wait before cluster deletion..."
+    sleep 10
     
     echo "Deleting cluster..."
     aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
@@ -767,10 +789,12 @@ cleanup_efs() {
         
         echo "Deleting file system $EFS_ID..."
         aws efs delete-file-system --file-system-id $EFS_ID --no-cli-pager 2>/dev/null
-
-        echo "Resetting task definition placeholder..."
-        sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
     done
+    
+    # Reset task definition back to placeholder
+    echo "Resetting task definition placeholder..."
+    sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+    
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
 }
 
