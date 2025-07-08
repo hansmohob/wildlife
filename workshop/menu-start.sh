@@ -9,8 +9,81 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Variables file for persistence
+VARS_FILE="/home/ec2-user/workspace/my-workspace/menu-vars.env"
+
 # Execution tracking
 declare -A EXECUTION_COUNT=()
+
+# =============================================================================
+# PERSISTENT STORAGE FUNCTIONS
+# =============================================================================
+
+create_vars_file() {
+    if [ ! -f "$VARS_FILE" ]; then
+        cat > "$VARS_FILE" << 'EOF'
+# Wildlife Application Variables
+EFS_ID=""
+ALB_ARN=""
+ALB_DNS=""
+TG_ARN=""
+ASG_ARN=""
+
+# Execution Counters
+EXEC_create_ecr_repos=0
+EXEC_build_images=0
+EXEC_push_images=0
+EXEC_setup_vpc_endpoints=0
+EXEC_deploy_ecs_cluster=0
+EXEC_register_task_definitions=0
+EXEC_create_load_balancer=0
+EXEC_create_ecs_services=0
+EXEC_fix_image_upload=0
+EXEC_fix_gps_data=0
+EXEC_create_efs_storage=0
+EXEC_cleanup_services=0
+EXEC_cleanup_load_balancer=0
+EXEC_cleanup_cluster=0
+EXEC_cleanup_asg=0
+EXEC_cleanup_task_definitions=0
+EXEC_cleanup_vpc_endpoints=0
+EXEC_cleanup_efs=0
+EXEC_cleanup_ecr=0
+EXEC_cleanup_docker=0
+EXEC_full_setup=0
+EXEC_check_status=0
+EXEC_show_app_url=0
+EXEC_full_cleanup=0
+EXEC_deploy_adot=0
+EOF
+    fi
+}
+
+load_variables() {
+    create_vars_file
+    source "$VARS_FILE" 2>/dev/null || true
+    
+    # Load execution counts into EXECUTION_COUNT array
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup deploy_adot; do
+        local exec_var="EXEC_${func}"
+        EXECUTION_COUNT["$func"]=${!exec_var:-0}
+    done
+}
+
+save_variable() {
+    local var_name="$1"
+    local var_value="$2"
+    create_vars_file
+    # Use | as delimiter instead of / to handle ARNs with forward slashes
+    sed -i "s|^${var_name}=.*|${var_name}=\"${var_value}\"|" "$VARS_FILE"
+}
+
+save_execution_count() {
+    local func_name="$1"
+    local count="${EXECUTION_COUNT[$func_name]}"
+    local exec_var="EXEC_${func_name}"
+    save_variable "$exec_var" "$count"
+}
 
 show_header() {
     clear
@@ -142,6 +215,9 @@ execute_command() {
         
         # Increment execution counter
         ((EXECUTION_COUNT["$func_name"]++))
+        
+        # Save execution count persistently
+        save_execution_count "$func_name"
     else
         echo -e "${YELLOW}Function '$func_name' not implemented yet${NC}"
         echo "Add the function '$func_name()' to this script to implement this feature."
@@ -244,6 +320,7 @@ deploy_ecs_cluster() {
         --tags ResourceId=REPLACE_PREFIX_CODE-asg-ecs,ResourceType=auto-scaling-group,Key=Name,Value=REPLACE_PREFIX_CODE-ecs-instance,PropagateAtLaunch=true
 
     ASG_ARN=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupARN' --output text)
+    save_variable "ASG_ARN" "$ASG_ARN"
 
     echo "Enabling container insights..."
     aws ecs put-account-setting --name containerInsights --value enhanced
@@ -327,6 +404,11 @@ create_load_balancer() {
 
     echo "Creating listener..."
     aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
+    
+    # Save load balancer variables persistently
+    save_variable "ALB_ARN" "$ALB_ARN"
+    save_variable "TG_ARN" "$TG_ARN"
+    
     echo -e "${GREEN}✅ Load balancer created${NC}"
 }
 
@@ -457,6 +539,7 @@ fix_image_upload() {
 fix_gps_data() {
     echo -e "${GREEN}Fixing GPS data...${NC}"
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
+    save_variable "ALB_DNS" "$ALB_DNS"
     aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
     echo -e "${GREEN}✅ GPS Data Fixed${NC}"
 }
@@ -505,6 +588,7 @@ create_efs_storage() {
     done
 
     echo "Updating task definition with EFS ID: $EFS_ID !MAKE SURE FILE IS CLOSED!"
+    save_variable "EFS_ID" "$EFS_ID"
     sleep 10
     sed -i "s/REPLACE_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
 
@@ -668,6 +752,12 @@ cleanup_load_balancer() {
     if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "" ]; then
         aws elbv2 delete-target-group --target-group-arn $TG_ARN --no-cli-pager
     fi
+    
+    # Clear load balancer variables
+    save_variable "ALB_ARN" ""
+    save_variable "ALB_DNS" ""
+    save_variable "TG_ARN" ""
+    
     echo -e "${GREEN}✅ Load Balancer deleted${NC}"
 }
 
@@ -737,12 +827,15 @@ cleanup_asg() {
     
     echo "Waiting for Auto Scaling Group to be deleted..."
     while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q REPLACE_PREFIX_CODE-asg-ecs; do
-        echo "ASG still exists, waiting..."
         sleep 5
     done
     
     echo "Deleting launch template..."
     aws ec2 delete-launch-template --launch-template-name REPLACE_PREFIX_CODE-launchtemplate-ecs --no-cli-pager
+    
+    # Clear ASG variable
+    save_variable "ASG_ARN" ""
+    
     echo -e "${GREEN}✅ Auto Scaling Group deleted${NC}"
 }
 
@@ -794,6 +887,9 @@ cleanup_efs() {
     # Reset task definition back to placeholder
     echo "Resetting task definition placeholder..."
     sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+    
+    # Clear EFS_ID variable
+    save_variable "EFS_ID" ""
     
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
 }
@@ -854,6 +950,9 @@ exit_menu() {
 # =============================================================================
 # MAIN MENU LOOP
 # =============================================================================
+
+# Load persistent variables at startup
+load_variables
 
 while true; do
     show_header
