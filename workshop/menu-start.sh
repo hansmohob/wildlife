@@ -232,16 +232,21 @@ execute_command() {
 
 create_ecr_repos() {
     echo -e "${GREEN}Creating ECR Repositories...${NC}"
+    
+    # AWS CLI COMMANDS: Create ECR repositories for each container image
     aws ecr create-repository --repository-name wildlife/alerts
     aws ecr create-repository --repository-name wildlife/datadb
     aws ecr create-repository --repository-name wildlife/dataapi
     aws ecr create-repository --repository-name wildlife/frontend 
     aws ecr create-repository --repository-name wildlife/media
+    
     echo -e "${GREEN}✅ ECR Repositories created${NC}"
 }
 
 build_images() {
     echo -e "${GREEN}Building Container Images...${NC}"
+    
+    # DOCKER COMMANDS: Build container images for each microservice
     cd /home/ec2-user/workspace/my-workspace/container-app && \
         docker build -t wildlife/alerts ./alerts && \
         docker build -t wildlife/datadb ./datadb && \
@@ -250,11 +255,14 @@ build_images() {
         cp ../terraform/ignoreme.txt ./media/dockerfile && \
         docker build -t wildlife/media ./media && \
         docker image ls | grep wildlife
+        
     echo -e "${GREEN}✅ Container images built${NC}"
 }
 
 push_images() {
     echo -e "${GREEN}Pushing Images to ECR...${NC}"
+    
+    # AWS CLI COMMANDS: Login to ECR and push container images
     aws ecr get-login-password --region REPLACE_AWS_REGION | docker login --username AWS --password-stdin REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com
     docker tag wildlife/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
     docker tag wildlife/datadb REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
@@ -266,11 +274,14 @@ push_images() {
     stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
     stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
     stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+    
     echo -e "${GREEN}Images pushed to ECR${NC}"
 }
 
 setup_vpc_endpoints() {
     echo -e "${GREEN}Setting up VPC Endpoints...${NC}"
+    
+    # AWS CLI COMMANDS: Create VPC endpoints for ECR API and Docker registry access
     aws ec2 create-vpc-endpoint \
         --vpc-id REPLACE_VPC_ID \
         --vpc-endpoint-type Interface \
@@ -286,11 +297,14 @@ setup_vpc_endpoints() {
         --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
         --security-group-ids REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
+        
     echo -e "${GREEN}VPC Endpoints created${NC}"
 }
 
 deploy_ecs_cluster() {
     echo -e "${GREEN}Deploying ECS Cluster...${NC}"
+    
+    # AWS CLI COMMANDS: Create ECS cluster with EC2 capacity provider and auto scaling
     USERDATA=$(base64 -w 0 /home/ec2-user/workspace/my-workspace/workshop/ec2_user_data.sh)
     ECS_AMI_ID=$(aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id --query "Parameters[0].Value" --output text)
 
@@ -352,6 +366,8 @@ deploy_ecs_cluster() {
 
 register_task_definitions() {
     echo -e "${GREEN}Registering Task Definitions...${NC}"
+    
+    # AWS CLI COMMANDS: Register ECS task definitions for each microservice
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v1.json \
         --no-cli-pager
@@ -371,11 +387,14 @@ register_task_definitions() {
     aws ecs register-task-definition \
         --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
         --no-cli-pager
+        
     echo -e "${GREEN}✅ Task definitions registered${NC}"
 }
 
 create_load_balancer() {
     echo -e "${GREEN}Creating Load Balancer...${NC}"
+    
+    # AWS CLI COMMANDS: Create Application Load Balancer with target group and listener
     echo "Creating target group..."
     TG_ARN=$(aws elbv2 create-target-group \
         --name REPLACE_PREFIX_CODE-targetgroup-ecs \
@@ -414,6 +433,8 @@ create_load_balancer() {
 
 create_ecs_services() {
     echo -e "${GREEN}Creating ECS Services...${NC}"
+    
+    # AWS CLI COMMANDS: Create ECS services for each microservice with service connect
     TG_ARN=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text)
     
     echo "Creating datadb service..."
@@ -523,6 +544,8 @@ create_ecs_services() {
 
 fix_image_upload() {
     echo -e "${GREEN}Fixing Image Upload...${NC}"
+    
+    # AWS CLI COMMANDS: Attach S3 policy to ECS task role and force service deployment
     aws iam attach-role-policy \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
         --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-s3
@@ -533,20 +556,25 @@ fix_image_upload() {
         --service REPLACE_PREFIX_CODE-media-service \
         --force-new-deployment \
         --no-cli-pager
+        
     echo -e "${GREEN}✅ Image Upload Fixed${NC}"
 }
 
 fix_gps_data() {
     echo -e "${GREEN}Fixing GPS data...${NC}"
+    
+    # AWS CLI COMMANDS: Update Lambda function environment variable with ALB DNS
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
     save_variable "ALB_DNS" "$ALB_DNS"
     aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
+    
     echo -e "${GREEN}✅ GPS Data Fixed${NC}"
 }
 
 create_efs_storage() {
     echo -e "${GREEN}Creating EFS Storage...${NC}"
     
+    # AWS CLI COMMANDS: Create EFS file system with mount targets for persistent storage
     aws iam attach-role-policy \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
         --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-efs \
@@ -652,6 +680,8 @@ deploy_adot() {
 
 check_status() {
     echo -e "${GREEN}Checking Deployment Status...${NC}"
+    
+    # AWS CLI COMMANDS: Query ECS cluster and service status information
     echo ""
     echo -e "${CYAN}ECS Cluster Status:${NC}"
     aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].{Status:status,ActiveServices:activeServicesCount,RunningTasks:runningTasksCount}' --output table 2>/dev/null || echo "Cluster not found"
@@ -672,6 +702,8 @@ check_status() {
 
 show_app_url() {
     echo -e "${GREEN}Getting Application URL...${NC}"
+    
+    # AWS CLI COMMANDS: Get Application Load Balancer DNS name for application access
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null)
     if [ "$ALB_DNS" != "None" ] && [ "$ALB_DNS" != "" ]; then
         echo ""
@@ -714,6 +746,8 @@ full_setup() {
 
 cleanup_services() {
     echo -e "${RED}Deleting ECS Services...${NC}"
+    
+    # AWS CLI COMMANDS: Scale down and delete all ECS services
     echo "Scaling down services to 0..."
     aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-frontend-service --desired-count 0 --no-cli-pager
     aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --desired-count 0 --no-cli-pager
@@ -735,6 +769,8 @@ cleanup_services() {
 
 cleanup_load_balancer() {
     echo -e "${RED}Deleting Load Balancer...${NC}"
+    
+    # AWS CLI COMMANDS: Delete Application Load Balancer, listeners, and target groups
     ALB_ARN=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null)
     if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "" ]; then
         echo "Deleting listeners..."
@@ -764,6 +800,7 @@ cleanup_load_balancer() {
 cleanup_cluster() {
     echo -e "${RED}Deleting ECS Cluster...${NC}"
     
+    # AWS CLI COMMANDS: Delete ECS cluster, capacity providers, and container instances
     echo "Checking cluster state..."
     CLUSTER_STATUS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null)
     if [ "$CLUSTER_STATUS" = "None" ] || [ "$CLUSTER_STATUS" = "" ]; then
@@ -822,6 +859,8 @@ cleanup_cluster() {
 
 cleanup_asg() {
     echo -e "${RED}Deleting Auto Scaling Group...${NC}"
+    
+    # AWS CLI COMMANDS: Delete Auto Scaling Group and launch template
     echo "Force deleting ASG..."
     aws autoscaling delete-auto-scaling-group --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs --force-delete --no-cli-pager
     
@@ -841,6 +880,8 @@ cleanup_asg() {
 
 cleanup_task_definitions() {
     echo -e "${RED}Deregistering Task Definitions...${NC}"
+    
+    # AWS CLI COMMANDS: Deregister all task definition revisions for each service
     for TASK_DEF in REPLACE_PREFIX_CODE-alerts-task REPLACE_PREFIX_CODE-datadb-task REPLACE_PREFIX_CODE-dataapi-task REPLACE_PREFIX_CODE-frontend-task REPLACE_PREFIX_CODE-media-task; do
         echo "Deregistering $TASK_DEF..."
         REVISIONS=$(aws ecs list-task-definitions --family-prefix $TASK_DEF --query 'taskDefinitionArns[]' --output text 2>/dev/null)
@@ -853,6 +894,8 @@ cleanup_task_definitions() {
 
 cleanup_vpc_endpoints() {
     echo -e "${RED}Deleting VPC Endpoints...${NC}"
+    
+    # AWS CLI COMMANDS: Delete VPC endpoints for ECR access
     VPC_ENDPOINTS=$(aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=REPLACE_VPC_ID" "Name=service-name,Values=com.amazonaws.REPLACE_AWS_REGION.ecr.*" --query 'VpcEndpoints[].VpcEndpointId' --output text 2>/dev/null)
     for ENDPOINT_ID in $VPC_ENDPOINTS; do
         echo "Deleting VPC endpoint $ENDPOINT_ID..."
@@ -863,6 +906,8 @@ cleanup_vpc_endpoints() {
 
 cleanup_efs() {
     echo -e "${RED}Deleting EFS Storage...${NC}"
+    
+    # AWS CLI COMMANDS: Delete EFS file systems, access points, and mount targets
     EFS_FILESYSTEMS=$(aws efs describe-file-systems --query 'FileSystems[?Tags[?Key==`Name` && contains(Value, `REPLACE_PREFIX_CODE-mongodb-efs`)]].FileSystemId' --output text 2>/dev/null)
     for EFS_ID in $EFS_FILESYSTEMS; do
         echo "Deleting access points for $EFS_ID..."
@@ -896,6 +941,8 @@ cleanup_efs() {
 
 cleanup_ecr() {
     echo -e "${RED}Deleting ECR Repositories...${NC}"
+    
+    # AWS CLI COMMANDS: Delete ECR repositories and all container images
     for REPO in wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media; do
         echo "Deleting repository $REPO..."
         aws ecr delete-repository --repository-name $REPO --force --no-cli-pager 2>/dev/null
@@ -905,6 +952,8 @@ cleanup_ecr() {
 
 cleanup_docker() {
     echo -e "${RED}Cleaning up Docker Images...${NC}"
+    
+    # DOCKER COMMANDS: Remove local container images and clean up Docker resources
     echo "Removing local wildlife images..."
     docker rmi wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media 2>/dev/null
     docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest 2>/dev/null
