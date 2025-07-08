@@ -75,8 +75,6 @@ EXEC_full_setup=0
 EXEC_check_status=0
 EXEC_show_app_url=0
 EXEC_full_cleanup=0
-EXEC_switch_to_containerized=0
-EXEC_switch_to_monolithic=0
 EXEC_deploy_adot=0
 EOF
     fi
@@ -87,7 +85,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup switch_to_containerized switch_to_monolithic deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup deploy_adot; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -153,8 +151,6 @@ declare -a MENU_ITEMS=(
     "full_setup|Full Setup (All Setup Commands)|QUICK"
     "check_status|Check Deployment Status|QUICK"
     "show_app_url|Show Application URL|QUICK"
-    "switch_to_containerized|Switch CloudFront to Containerized App|QUICK"
-    "switch_to_monolithic|Switch CloudFront to Monolithic App|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
 
     # ADVANCED FEATURES
@@ -259,11 +255,11 @@ create_ecr_repos() {
     echo -e "${GREEN}Creating ECR Repositories...${NC}"
     
     # AWS CLI COMMANDS: Create ECR repositories for each container image
-    aws ecr create-repository --repository-name wildlife/alerts
-    aws ecr create-repository --repository-name wildlife/datadb
-    aws ecr create-repository --repository-name wildlife/dataapi
-    aws ecr create-repository --repository-name wildlife/frontend 
-    aws ecr create-repository --repository-name wildlife/media
+    aws ecr create-repository --repository-name REPLACE_PREFIX_CODE/alerts
+    aws ecr create-repository --repository-name REPLACE_PREFIX_CODE/datadb
+    aws ecr create-repository --repository-name REPLACE_PREFIX_CODE/dataapi
+    aws ecr create-repository --repository-name REPLACE_PREFIX_CODE/frontend 
+    aws ecr create-repository --repository-name REPLACE_PREFIX_CODE/media
     
     echo -e "${GREEN}✅ ECR Repositories created${NC}"
 }
@@ -273,13 +269,13 @@ build_images() {
     
     # DOCKER COMMANDS: Build container images for each microservice
     cd /home/ec2-user/workspace/my-workspace/container-app && \
-        docker build -t wildlife/alerts ./alerts && \
-        docker build -t wildlife/datadb ./datadb && \
-        docker build -t wildlife/dataapi ./dataapi && \
-        docker build -t wildlife/frontend ./frontend && \
+        docker build -t REPLACE_PREFIX_CODE/alerts ./alerts && \
+        docker build -t REPLACE_PREFIX_CODE/datadb ./datadb && \
+        docker build -t REPLACE_PREFIX_CODE/dataapi ./dataapi && \
+        docker build -t REPLACE_PREFIX_CODE/frontend ./frontend && \
         cp ../terraform/ignoreme.txt ./media/dockerfile && \
-        docker build -t wildlife/media ./media && \
-        docker image ls | grep wildlife
+        docker build -t REPLACE_PREFIX_CODE/media ./media && \
+        docker image ls | grep REPLACE_PREFIX_CODE
         
     echo -e "${GREEN}✅ Container images built${NC}"
 }
@@ -289,16 +285,16 @@ push_images() {
     
     # AWS CLI COMMANDS: Login to ECR and push container images
     aws ecr get-login-password --region REPLACE_AWS_REGION | docker login --username AWS --password-stdin REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com
-    docker tag wildlife/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
-    docker tag wildlife/datadb REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
-    docker tag wildlife/dataapi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
-    docker tag wildlife/frontend REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
-    docker tag wildlife/media REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
-    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest
-    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest
-    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest
-    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest
-    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest
+    docker tag REPLACE_PREFIX_CODE/alerts REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/alerts:latest
+    docker tag REPLACE_PREFIX_CODE/datadb REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/datadb:latest
+    docker tag REPLACE_PREFIX_CODE/dataapi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/dataapi:latest
+    docker tag REPLACE_PREFIX_CODE/frontend REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/frontend:latest
+    docker tag REPLACE_PREFIX_CODE/media REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/media:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/alerts:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/datadb:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/dataapi:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/frontend:latest
+    stdbuf -oL docker push REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/media:latest
     
     echo -e "${GREEN}Images pushed to ECR${NC}"
 }
@@ -312,7 +308,7 @@ setup_vpc_endpoints() {
         --vpc-endpoint-type Interface \
         --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.api \
         --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
-        --security-group-ids REPLACE_SECURITY_GROUP_APP \
+        --security-group-ids REPLACE_SECURITY_GROUP_ALB \
         --no-cli-pager
 
     aws ec2 create-vpc-endpoint \
@@ -320,7 +316,7 @@ setup_vpc_endpoints() {
         --vpc-endpoint-type Interface \
         --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.dkr \
         --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
-        --security-group-ids REPLACE_SECURITY_GROUP_APP \
+        --security-group-ids REPLACE_SECURITY_GROUP_ALB \
         --no-cli-pager
         
     echo -e "${GREEN}VPC Endpoints created${NC}"
@@ -344,7 +340,7 @@ deploy_ecs_cluster() {
             \"IamInstanceProfile\": {
                 \"Name\": \"REPLACE_PREFIX_CODE-iamprofile-ecs\"
             },
-            \"SecurityGroupIds\": [\"REPLACE_SECURITY_GROUP_APP\"],
+            \"SecurityGroupIds\": [\"REPLACE_SECURITY_GROUP_ALB\"],
             \"KeyName\": \"REPLACE_PREFIX_CODE-ec2-keypair\"
         }"
 
@@ -367,7 +363,7 @@ deploy_ecs_cluster() {
     echo "Creating ECS cluster..."
     aws ecs create-cluster \
         --cluster-name REPLACE_PREFIX_CODE-ecs \
-        --service-connect-defaults namespace=wildlife \
+        --service-connect-defaults namespace=REPLACE_PREFIX_CODE \
         --settings name=containerInsights,value=enhanced \
         --no-cli-pager
 
@@ -427,7 +423,7 @@ create_load_balancer() {
         --port 5000 \
         --vpc-id REPLACE_VPC_ID \
         --target-type ip \
-        --health-check-path /wildlife/health \
+        --health-check-path /REPLACE_PREFIX_CODE/health \
         --health-check-interval-seconds 30 \
         --health-check-timeout-seconds 5 \
         --healthy-threshold-count 2 \
@@ -469,8 +465,8 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-datadb-task \
         --desired-count 1 \
         --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
@@ -484,8 +480,8 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
@@ -496,8 +492,8 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-alerts-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=alerts-http,discoveryName=REPLACE_PREFIX_CODE-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=alerts-http,discoveryName=REPLACE_PREFIX_CODE-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
@@ -508,8 +504,8 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
 
@@ -520,8 +516,8 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-frontend-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
-        --service-connect-configuration "enabled=true,namespace=wildlife,services=[{portName=frontend-http,discoveryName=REPLACE_PREFIX_CODE-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=wildlife}}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=frontend-http,discoveryName=REPLACE_PREFIX_CODE-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --load-balancers "targetGroupArn=$TG_ARN,containerName=REPLACE_PREFIX_CODE-frontend,containerPort=5000" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
@@ -564,7 +560,7 @@ create_ecs_services() {
     done
 
     echo ""
-    echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/wildlife${NC}"
+    echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/REPLACE_PREFIX_CODE${NC}"
 }
 
 fix_image_upload() {
@@ -591,7 +587,7 @@ fix_gps_data() {
     # AWS CLI COMMANDS: Update Lambda function environment variable with ALB DNS
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)
     save_variable "ALB_DNS" "$ALB_DNS"
-    aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/wildlife/api/gps}" --no-cli-pager
+    aws lambda update-function-configuration --function-name REPLACE_PREFIX_CODE-lambda-gps --environment "Variables={API_ENDPOINT=http://$ALB_DNS/REPLACE_PREFIX_CODE/api/gps}" --no-cli-pager
     
     echo -e "${GREEN}✅ GPS Data Fixed${NC}"
 }
@@ -625,13 +621,13 @@ create_efs_storage() {
     aws efs create-mount-target \
         --file-system-id $EFS_ID \
         --subnet-id REPLACE_PRIVATE_SUBNET_1 \
-        --security-groups REPLACE_SECURITY_GROUP_APP \
+        --security-groups REPLACE_SECURITY_GROUP_ALB \
         --no-cli-pager
     
     aws efs create-mount-target \
         --file-system-id $EFS_ID \
         --subnet-id REPLACE_PRIVATE_SUBNET_2 \
-        --security-groups REPLACE_SECURITY_GROUP_APP \
+        --security-groups REPLACE_SECURITY_GROUP_ALB \
         --no-cli-pager
 
     echo "Waiting for mount targets to be available..."
@@ -664,49 +660,6 @@ create_efs_storage() {
     
     echo -e "${GREEN}✅ EFS Storage created and configured${NC}"
     echo -e "${CYAN}EFS ID: $EFS_ID${NC}"
-}
-
-switch_to_containerized() {
-    echo -e "${GREEN}Switching CloudFront to Containerized App...${NC}"
-    
-    # AWS CLI COMMANDS: Update CloudFront distribution to point /wildlife/* to ECS ALB
-    WILDLIFE_ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION)
-    
-    if [ "$WILDLIFE_ALB_DNS" = "None" ] || [ "$WILDLIFE_ALB_DNS" = "" ]; then
-        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
-        return 1
-    fi
-    
-    echo "Updating CloudFront to use Wildlife ALB: $WILDLIFE_ALB_DNS"
-    
-    # Add origin and switch cache behavior
-    aws cloudfront update-distribution \
-        --id REPLACE_CLOUDFRONT_DISTRIBUTION_ID \
-        --distribution-config "{\"Origins\":{\"Items\":[{\"Id\":\"WildlifeContainerOrigin\",\"DomainName\":\"$WILDLIFE_ALB_DNS\",\"CustomOriginConfig\":{\"HTTPPort\":80,\"OriginProtocolPolicy\":\"http-only\"}}]},\"CacheBehaviors\":{\"Items\":[{\"PathPattern\":\"/wildlife/*\",\"TargetOriginId\":\"WildlifeContainerOrigin\"}]}}" \
-        --no-cli-pager
-    
-    aws cloudfront create-invalidation --distribution-id REPLACE_CLOUDFRONT_DISTRIBUTION_ID --paths "/wildlife/*" --no-cli-pager
-    
-    echo -e "${GREEN}✅ CloudFront switched to containerized app${NC}"
-    echo -e "${CYAN}🌐 Access at: https://REPLACE_CLOUDFRONT_DOMAIN_NAME/wildlife${NC}"
-}
-
-switch_to_monolithic() {
-    echo -e "${GREEN}Switching CloudFront to Monolithic App...${NC}"
-    
-    # AWS CLI COMMANDS: Update CloudFront distribution to point /wildlife/* back to CodeServer ALB
-    echo "Switching back to CodeServer ALB..."
-    
-    # Switch cache behavior back to CodeServer
-    aws cloudfront update-distribution \
-        --id REPLACE_CLOUDFRONT_DISTRIBUTION_ID \
-        --distribution-config "{\"CacheBehaviors\":{\"Items\":[{\"PathPattern\":\"/wildlife/*\",\"TargetOriginId\":\"CodeServerOrigin\"}]}}" \
-        --no-cli-pager
-    
-    aws cloudfront create-invalidation --distribution-id REPLACE_CLOUDFRONT_DISTRIBUTION_ID --paths "/wildlife/*" --no-cli-pager
-    
-    echo -e "${GREEN}✅ CloudFront switched back to monolithic app${NC}"
-    echo -e "${CYAN}🌐 Access at: https://REPLACE_CLOUDFRONT_DOMAIN_NAME/wildlife${NC}"
 }
 
 deploy_adot() {
@@ -776,10 +729,10 @@ show_app_url() {
     if [ "$ALB_DNS" != "None" ] && [ "$ALB_DNS" != "" ]; then
         echo ""
         echo -e "${CYAN}🌐 Application URL:${NC}"
-        echo "   http://$ALB_DNS/wildlife"
+        echo "   http://$ALB_DNS/REPLACE_PREFIX_CODE"
         echo ""
         echo -e "${CYAN}📊 Health Check:${NC}"
-        echo "   http://$ALB_DNS/wildlife/health"
+        echo "   http://$ALB_DNS/REPLACE_PREFIX_CODE/health"
     else
         echo -e "${YELLOW}Load balancer not found or not ready yet${NC}"
     fi
@@ -976,7 +929,7 @@ cleanup_ecr() {
     echo -e "${RED}Deleting ECR Repositories...${NC}"
     
     # AWS CLI COMMANDS: Delete ECR repositories and all container images
-    for REPO in wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media; do
+    for REPO in REPLACE_PREFIX_CODE/alerts REPLACE_PREFIX_CODE/datadb REPLACE_PREFIX_CODE/dataapi REPLACE_PREFIX_CODE/frontend REPLACE_PREFIX_CODE/media; do
         echo "Deleting repository $REPO..."
         aws ecr delete-repository --repository-name $REPO --force --no-cli-pager 2>/dev/null
     done
@@ -987,13 +940,13 @@ cleanup_docker() {
     echo -e "${RED}Cleaning up Docker Images...${NC}"
     
     # DOCKER COMMANDS: Remove local container images and clean up Docker resources
-    echo "Removing local wildlife images..."
-    docker rmi wildlife/alerts wildlife/datadb wildlife/dataapi wildlife/frontend wildlife/media 2>/dev/null
-    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/alerts:latest 2>/dev/null
-    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest 2>/dev/null
-    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest 2>/dev/null
-    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest 2>/dev/null
-    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/media:latest 2>/dev/null
+    echo "Removing local REPLACE_PREFIX_CODE images..."
+    docker rmi REPLACE_PREFIX_CODE/alerts REPLACE_PREFIX_CODE/datadb REPLACE_PREFIX_CODE/dataapi REPLACE_PREFIX_CODE/frontend REPLACE_PREFIX_CODE/media 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/alerts:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/datadb:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/dataapi:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/frontend:latest 2>/dev/null
+    docker rmi REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/REPLACE_PREFIX_CODE/media:latest 2>/dev/null
 
     echo "Cleaning up unused Docker resources..."
     docker system prune -f
@@ -1001,7 +954,7 @@ cleanup_docker() {
 }
 
 full_cleanup() {
-    echo -e "${RED}⚠️  This will delete ALL wildlife infrastructure!${NC}"
+    echo -e "${RED}⚠️  This will delete ALL REPLACE_PREFIX_CODE infrastructure!${NC}"
     
     if [ "$CI_MODE" = "true" ]; then
         confirm="DELETE"
