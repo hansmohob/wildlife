@@ -378,7 +378,8 @@ perl -i -pe "BEGIN{undef $/;}
     s/REPLACE_PUBLIC_SUBNET_2/${PUBLIC_SUBNET_2}/g; 
     s/REPLACE_SECURITY_GROUP_APP/${SECURITY_GROUP_APP}/g; 
     s/REPLACE_SECURITY_GROUP_ALB/${SECURITY_GROUP_ALB}/g;
-    s/REPLACE_S3_BUCKET_WILDLIFE/${S3_BUCKET_WILDLIFE}/g" \
+    s/REPLACE_S3_BUCKET_WILDLIFE/${S3_BUCKET_WILDLIFE}/g;
+    s/REPLACE_CLOUDFRONT_DISTRIBUTION_ID/${CLOUDFRONT_DISTRIBUTION_ID}/g" \
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
         -name "menu-start.sh")

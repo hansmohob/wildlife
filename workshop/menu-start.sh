@@ -75,6 +75,8 @@ EXEC_full_setup=0
 EXEC_check_status=0
 EXEC_show_app_url=0
 EXEC_full_cleanup=0
+EXEC_switch_to_containerized=0
+EXEC_switch_to_monolithic=0
 EXEC_deploy_adot=0
 EOF
     fi
@@ -85,7 +87,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup switch_to_containerized switch_to_monolithic deploy_adot; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -151,6 +153,8 @@ declare -a MENU_ITEMS=(
     "full_setup|Full Setup (All Setup Commands)|QUICK"
     "check_status|Check Deployment Status|QUICK"
     "show_app_url|Show Application URL|QUICK"
+    "switch_to_containerized|Switch CloudFront to Containerized App|QUICK"
+    "switch_to_monolithic|Switch CloudFront to Monolithic App|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
 
     # ADVANCED FEATURES
@@ -662,6 +666,49 @@ create_efs_storage() {
     echo -e "${CYAN}EFS ID: $EFS_ID${NC}"
 }
 
+switch_to_containerized() {
+    echo -e "${GREEN}Switching CloudFront to Containerized App...${NC}"
+    
+    # AWS CLI COMMANDS: Update CloudFront distribution to point /wildlife/* to ECS ALB
+    WILDLIFE_ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION)
+    
+    if [ "$WILDLIFE_ALB_DNS" = "None" ] || [ "$WILDLIFE_ALB_DNS" = "" ]; then
+        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
+        return 1
+    fi
+    
+    echo "Updating CloudFront to use Wildlife ALB: $WILDLIFE_ALB_DNS"
+    
+    # Add origin and switch cache behavior
+    aws cloudfront update-distribution \
+        --id REPLACE_CLOUDFRONT_DISTRIBUTION_ID \
+        --distribution-config "{\"Origins\":{\"Items\":[{\"Id\":\"WildlifeContainerOrigin\",\"DomainName\":\"$WILDLIFE_ALB_DNS\",\"CustomOriginConfig\":{\"HTTPPort\":80,\"OriginProtocolPolicy\":\"http-only\"}}]},\"CacheBehaviors\":{\"Items\":[{\"PathPattern\":\"/wildlife/*\",\"TargetOriginId\":\"WildlifeContainerOrigin\"}]}}" \
+        --no-cli-pager
+    
+    aws cloudfront create-invalidation --distribution-id REPLACE_CLOUDFRONT_DISTRIBUTION_ID --paths "/wildlife/*" --no-cli-pager
+    
+    echo -e "${GREEN}✅ CloudFront switched to containerized app${NC}"
+    echo -e "${CYAN}🌐 Access at: https://REPLACE_CLOUDFRONT_DOMAIN_NAME/wildlife${NC}"
+}
+
+switch_to_monolithic() {
+    echo -e "${GREEN}Switching CloudFront to Monolithic App...${NC}"
+    
+    # AWS CLI COMMANDS: Update CloudFront distribution to point /wildlife/* back to CodeServer ALB
+    echo "Switching back to CodeServer ALB..."
+    
+    # Switch cache behavior back to CodeServer
+    aws cloudfront update-distribution \
+        --id REPLACE_CLOUDFRONT_DISTRIBUTION_ID \
+        --distribution-config "{\"CacheBehaviors\":{\"Items\":[{\"PathPattern\":\"/wildlife/*\",\"TargetOriginId\":\"CodeServerOrigin\"}]}}" \
+        --no-cli-pager
+    
+    aws cloudfront create-invalidation --distribution-id REPLACE_CLOUDFRONT_DISTRIBUTION_ID --paths "/wildlife/*" --no-cli-pager
+    
+    echo -e "${GREEN}✅ CloudFront switched back to monolithic app${NC}"
+    echo -e "${CYAN}🌐 Access at: https://REPLACE_CLOUDFRONT_DOMAIN_NAME/wildlife${NC}"
+}
+
 deploy_adot() {
     echo -e "${GREEN}Deploying AWS Distro for OpenTelemetry (ADOT)...${NC}"
     echo "This will update task definitions to v2 with ADOT sidecar containers..."
@@ -829,59 +876,17 @@ cleanup_cluster() {
     echo -e "${RED}Deleting ECS Cluster...${NC}"
     
     # AWS CLI COMMANDS: Delete ECS cluster, capacity providers, and container instances
-    echo "Checking cluster state..."
-    CLUSTER_STATUS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null)
-    if [ "$CLUSTER_STATUS" = "None" ] || [ "$CLUSTER_STATUS" = "" ]; then
-        echo "Cluster not found or already deleted"
+    if ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+        echo "Cluster not found, skipping deletion"
+        echo -e "${GREEN}✅ ECS Cluster deleted (was already gone)${NC}"
         return 0
     fi
     
-    echo "Waiting for cluster to be in a stable state..."
-    while true; do
-        CLUSTER_STATUS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null)
-        ACTIVE_SERVICES=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].activeServicesCount' --output text 2>/dev/null)
-        RUNNING_TASKS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].runningTasksCount' --output text 2>/dev/null)
-        PENDING_TASKS=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].pendingTasksCount' --output text 2>/dev/null)
-        
-        echo "Cluster status: $CLUSTER_STATUS, Active services: $ACTIVE_SERVICES, Running tasks: $RUNNING_TASKS, Pending tasks: $PENDING_TASKS"
-        
-        if [ "$CLUSTER_STATUS" = "ACTIVE" ] && [ "$ACTIVE_SERVICES" = "0" ] && [ "$RUNNING_TASKS" = "0" ] && [ "$PENDING_TASKS" = "0" ]; then
-            echo "Cluster is ready for deletion"
-            break
-        fi
-        
-        echo "Cluster still busy, waiting 30 seconds..."
-        sleep 30
-    done
-    
-    echo "Deregistering container instances..."
-    CONTAINER_INSTANCES=$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'containerInstanceArns[]' --output text 2>/dev/null)
-    if [ "$CONTAINER_INSTANCES" != "" ]; then
-        for INSTANCE_ARN in $CONTAINER_INSTANCES; do
-            aws ecs deregister-container-instance --cluster REPLACE_PREFIX_CODE-ecs --container-instance $INSTANCE_ARN --force --no-cli-pager
-        done
-        
-        echo "Waiting for container instances to deregister..."
-        while [ "$(aws ecs list-container-instances --cluster REPLACE_PREFIX_CODE-ecs --query 'length(containerInstanceArns)' --output text 2>/dev/null)" != "0" ]; do
-            echo "Container instances still active, waiting..."
-            sleep 10
-        done
-    fi
-
-    echo "Removing capacity providers..."
+    echo "Removing capacity providers and deleting cluster..."
     aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
-    
-    echo "Waiting for capacity provider update to complete..."
-    sleep 10
-    
-    echo "Deleting capacity provider..."
     aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager 2>/dev/null
+    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager 2>/dev/null
     
-    echo "Final wait before cluster deletion..."
-    sleep 10
-    
-    echo "Deleting cluster..."
-    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
     echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
 }
 
