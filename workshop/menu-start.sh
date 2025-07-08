@@ -62,6 +62,7 @@ EXEC_create_ecs_services=0
 EXEC_fix_image_upload=0
 EXEC_fix_gps_data=0
 EXEC_create_efs_storage=0
+EXEC_configure_service_scaling=0
 EXEC_cleanup_services=0
 EXEC_cleanup_load_balancer=0
 EXEC_cleanup_cluster=0
@@ -74,6 +75,7 @@ EXEC_cleanup_docker=0
 EXEC_full_setup=0
 EXEC_check_status=0
 EXEC_show_app_url=0
+EXEC_run_service_scaling_test=0
 EXEC_full_cleanup=0
 EXEC_deploy_adot=0
 EOF
@@ -85,7 +87,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url full_cleanup deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_setup check_status show_app_url run_service_scaling_test full_cleanup deploy_adot; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -135,6 +137,7 @@ declare -a MENU_ITEMS=(
     "fix_image_upload|Fix Image Upload|SETUP"
     "fix_gps_data|Fix GPS Data|SETUP"
     "create_efs_storage|Create EFS Storage|SETUP"
+    "configure_service_scaling|Configure Service Auto Scaling|SETUP"
     
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
@@ -151,6 +154,7 @@ declare -a MENU_ITEMS=(
     "full_setup|Full Setup (All Setup Commands)|QUICK"
     "check_status|Check Deployment Status|QUICK"
     "show_app_url|Show Application URL|QUICK"
+    "run_service_scaling_test|Run Service Scaling Test|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
 
     # ADVANCED FEATURES
@@ -662,6 +666,40 @@ create_efs_storage() {
     echo -e "${CYAN}EFS ID: $EFS_ID${NC}"
 }
 
+configure_service_scaling() {
+    echo -e "${GREEN}Configuring Frontend Service Auto Scaling...${NC}"
+    
+    # AWS CLI COMMANDS: Configure ECS service auto scaling for frontend service
+    echo "Registering scalable target for frontend service..."
+    aws application-autoscaling register-scalable-target \
+        --service-namespace ecs \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-frontend-service \
+        --scalable-dimension ecs:service:DesiredCount \
+        --min-capacity 2 \
+        --max-capacity 5 \
+        --no-cli-pager
+    
+    echo "Creating CPU-based scaling policy..."
+    aws application-autoscaling put-scaling-policy \
+        --service-namespace ecs \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-frontend-service \
+        --scalable-dimension ecs:service:DesiredCount \
+        --policy-name REPLACE_PREFIX_CODE-frontend-cpu-scaling \
+        --policy-type TargetTrackingScaling \
+        --target-tracking-scaling-policy-configuration '{
+            "TargetValue": 70.0,
+            "PredefinedMetricSpecification": {
+                "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+            },
+            "ScaleOutCooldown": 300,
+            "ScaleInCooldown": 300
+        }' \
+        --no-cli-pager
+    
+    echo ""
+    echo -e "${GREEN}✅ Service Auto Scaling configured${NC}"
+}
+
 deploy_adot() {
     echo -e "${GREEN}Deploying AWS Distro for OpenTelemetry (ADOT)...${NC}"
     echo "This will update task definitions to v2 with ADOT sidecar containers..."
@@ -738,6 +776,24 @@ show_app_url() {
     fi
 }
 
+run_service_scaling_test() {
+    echo -e "${GREEN}Running Service Scaling Test...${NC}"
+    
+    # Get ALB DNS for load testing
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
+    
+    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
+        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
+        return 1
+    fi
+    
+    # Show the command being executed
+    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run loadtest-service-scaling.js${NC}"
+    
+    # Run k6 test with ALB URL
+    ALB_URL="http://$ALB_DNS" k6 run loadtest-service-scaling.js
+}
+
 full_setup() {
     echo -e "${GREEN}Running Full Setup...${NC}"
     echo "This will run all setup commands in sequence"
@@ -761,7 +817,8 @@ full_setup() {
         create_ecs_services && \
         fix_image_upload && \
         fix_gps_data && \
-        create_efs_storage
+        create_efs_storage && \
+        configure_service_scaling
         echo -e "${GREEN}✅ Full setup completed!${NC}"
     else
         echo "Setup cancelled"
