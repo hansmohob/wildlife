@@ -15,6 +15,27 @@ VARS_FILE="/home/ec2-user/workspace/my-workspace/menu-vars.env"
 # Execution tracking
 declare -A EXECUTION_COUNT=()
 
+# CI/Automation mode
+CI_MODE=${CI_MODE:-false}
+CI_COMMAND=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --ci|--auto)
+            CI_MODE=true
+            shift
+            ;;
+        --command)
+            CI_COMMAND="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
 # =============================================================================
 # PERSISTENT STORAGE FUNCTIONS
 # =============================================================================
@@ -720,8 +741,15 @@ show_app_url() {
 full_setup() {
     echo -e "${GREEN}Running Full Setup...${NC}"
     echo "This will run all setup commands in sequence"
-    echo -n "Continue? (y/n): "
-    read confirm
+    
+    if [ "$CI_MODE" = "true" ]; then
+        confirm="y"
+        echo "🤖 CI Mode: Auto-confirming setup"
+    else
+        echo -n "Continue? (y/n): "
+        read confirm
+    fi
+    
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         create_ecr_repos && \
         build_images && \
@@ -969,8 +997,15 @@ cleanup_docker() {
 
 full_cleanup() {
     echo -e "${RED}⚠️  This will delete ALL wildlife infrastructure!${NC}"
-    echo -n "Type 'DELETE' to confirm: "
-    read confirm
+    
+    if [ "$CI_MODE" = "true" ]; then
+        confirm="DELETE"
+        echo "🤖 CI Mode: Auto-confirming cleanup"
+    else
+        echo -n "Type 'DELETE' to confirm: "
+        read confirm
+    fi
+    
     if [ "$confirm" = "DELETE" ]; then
         echo -e "${RED}🔥 Starting complete infrastructure cleanup...${NC}"
         cleanup_services && \
@@ -1002,6 +1037,40 @@ exit_menu() {
 
 # Load persistent variables at startup
 load_variables
+
+# Handle command line execution for CI/automation
+if [ "$CI_MODE" = "true" ] && [ -n "$CI_COMMAND" ]; then
+    echo "🤖 CI Mode: Executing command '$CI_COMMAND'"
+    case $CI_COMMAND in
+        full_setup)
+            full_setup
+            exit $?
+            ;;
+        full_cleanup)
+            full_cleanup
+            exit $?
+            ;;
+        test_deployment)
+            echo "🤖 CI Mode: Running full deployment test"
+            full_setup
+            setup_result=$?
+            if [ $setup_result -eq 0 ]; then
+                echo "✅ Deployment test PASSED - cleaning up"
+                full_cleanup
+                exit 0
+            else
+                echo "❌ Deployment test FAILED - cleaning up"
+                full_cleanup
+                exit 1
+            fi
+            ;;
+        *)
+            echo "❌ Unknown CI command: $CI_COMMAND"
+            echo "Available commands: full_setup, full_cleanup, test_deployment"
+            exit 1
+            ;;
+    esac
+fi
 
 while true; do
     show_header
