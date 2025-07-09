@@ -481,7 +481,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-datadb-service \
         --task-definition REPLACE_PREFIX_CODE-datadb-task \
         --desired-count 1 \
-        --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+        --launch-type FARGATE \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -496,7 +496,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-dataapi-service \
         --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
-        --launch-type FARGATE \
+        --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
