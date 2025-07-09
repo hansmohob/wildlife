@@ -740,6 +740,7 @@ configure_capacity_scaling() {
     aws application-autoscaling put-scaling-policy \
         --service-namespace ecs \
         --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-dataapi-service \
+        --scalable-dimension ecs:service:DesiredCount \
         --policy-name REPLACE_PREFIX_CODE-dataapi-cpu-scaling \
         --policy-type TargetTrackingScaling \
         --target-tracking-scaling-policy-configuration '{
@@ -751,7 +752,6 @@ configure_capacity_scaling() {
         --no-cli-pager
     
     echo -e "${GREEN}✅ Capacity Auto Scaling configured${NC}"
-    echo "DataAPI service will scale when CPU > 70%, triggering infrastructure scaling"
 }
 
 deploy_adot() {
