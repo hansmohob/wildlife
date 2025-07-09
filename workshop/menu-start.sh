@@ -141,12 +141,12 @@ declare -a MENU_ITEMS=(
 
     # OPERATE COMMANDS
     "configure_service_scaling|Configure Service Auto Scaling|OPERATE"
+    "run_service_scaling_test|Run Service Scaling Test|OPERATE"
     "configure_capacity_scaling|Configure Capacity Auto Scaling|OPERATE"
+    "run_capacity_scaling_test|Run Capacity Scaling Test|OPERATE"
     
     # QUICK ACTIONS
     "show_app_url|Show Application URL|QUICK"
-    "run_service_scaling_test|Run Service Scaling Test|QUICK"
-    "run_capacity_scaling_test|Run Capacity Scaling Test|QUICK"
     "full_build|Full Build (All Build Commands)|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
     
@@ -719,6 +719,13 @@ configure_service_scaling() {
 
 configure_capacity_scaling() {
     echo -e "${GREEN}Configuring Capacity Auto Scaling...${NC}"
+    
+    # AWS CLI COMMANDS: Update Auto Scaling Group to allow scaling up to 4 instances for capacity scaling
+    echo "Updating Auto Scaling Group max capacity for capacity scaling..."
+    aws autoscaling update-auto-scaling-group \
+        --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs \
+        --max-size 4 \
+        --no-cli-pager
     
     # AWS CLI COMMANDS: Configure ECS service auto scaling for DataAPI to trigger capacity scaling
     echo "Configuring DataAPI service auto scaling..."
