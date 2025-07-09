@@ -1,6 +1,6 @@
 {
     "family": "wildlife-dataapi-task",
-    "requiresCompatibilities": ["FARGATE"],
+    "requiresCompatibilities": ["EC2"],
     "cpu": "512",
     "memory": "1024",
     "runtimePlatform": {

@@ -1,6 +1,6 @@
 {
     "family": "wildlife-datadb-task",
-    "requiresCompatibilities": ["EC2"],
+    "requiresCompatibilities": ["FARGATE"],
     "cpu": "512",
     "memory": "1024",
     "runtimePlatform": {
