@@ -358,7 +358,7 @@ deploy_ecs_cluster() {
         --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs \
         --launch-template LaunchTemplateName=REPLACE_PREFIX_CODE-launchtemplate-ecs \
         --min-size 2 \
-        --max-size 4 \
+        --max-size 2 \
         --desired-capacity 2 \
         --vpc-zone-identifier "REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2" \
         --tags ResourceId=REPLACE_PREFIX_CODE-asg-ecs,ResourceType=auto-scaling-group,Key=Name,Value=REPLACE_PREFIX_CODE-ecs-instance,PropagateAtLaunch=true
