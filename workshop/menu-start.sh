@@ -317,7 +317,7 @@ setup_vpc_endpoints() {
         --vpc-endpoint-type Interface \
         --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.api \
         --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
-        --security-group-ids REPLACE_SECURITY_GROUP_ALB \
+        --security-group-ids REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
 
     aws ec2 create-vpc-endpoint \
@@ -325,7 +325,7 @@ setup_vpc_endpoints() {
         --vpc-endpoint-type Interface \
         --service-name com.amazonaws.REPLACE_AWS_REGION.ecr.dkr \
         --subnet-ids REPLACE_PRIVATE_SUBNET_1 REPLACE_PRIVATE_SUBNET_2 \
-        --security-group-ids REPLACE_SECURITY_GROUP_ALB \
+        --security-group-ids REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
         
     echo -e "${GREEN}VPC Endpoints created${NC}"
@@ -349,7 +349,7 @@ deploy_ecs_cluster() {
             \"IamInstanceProfile\": {
                 \"Name\": \"REPLACE_PREFIX_CODE-iamprofile-ecs\"
             },
-            \"SecurityGroupIds\": [\"REPLACE_SECURITY_GROUP_ALB\"],
+            \"SecurityGroupIds\": [\"REPLACE_SECURITY_GROUP_APP\"],
             \"KeyName\": \"REPLACE_PREFIX_CODE-ec2-keypair\"
         }"
 
@@ -642,13 +642,13 @@ create_efs_storage() {
     aws efs create-mount-target \
         --file-system-id $EFS_ID \
         --subnet-id REPLACE_PRIVATE_SUBNET_1 \
-        --security-groups REPLACE_SECURITY_GROUP_ALB \
+        --security-groups REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
     
     aws efs create-mount-target \
         --file-system-id $EFS_ID \
         --subnet-id REPLACE_PRIVATE_SUBNET_2 \
-        --security-groups REPLACE_SECURITY_GROUP_ALB \
+        --security-groups REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
 
     echo "Waiting for mount targets to be available..."
