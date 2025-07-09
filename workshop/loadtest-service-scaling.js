@@ -52,12 +52,6 @@ export default function() {
 }
 
 export function handleSummary(data) {
-  return {
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
-  };
-}
-
-export function handleSummary(data) {
   const avgDuration = data.metrics.iteration_duration?.avg || 0;
   const totalReqs = data.metrics.http_reqs?.count || 0;
   const failureRate = data.metrics.http_req_failed?.rate || 0;
