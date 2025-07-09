@@ -378,7 +378,7 @@ deploy_ecs_cluster() {
 
     echo "Creating capacity provider..."
     aws ecs create-capacity-provider \
-        --name wildlife-capacity-ec2 \
+        --name REPLACE_PREFIX_CODE-capacity-ec2 \
         --auto-scaling-group-provider "{
             \"autoScalingGroupArn\": \"$ASG_ARN\",
             \"managedScaling\": {
