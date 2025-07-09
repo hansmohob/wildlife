@@ -354,7 +354,7 @@ deploy_ecs_cluster() {
         --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs \
         --launch-template LaunchTemplateName=REPLACE_PREFIX_CODE-launchtemplate-ecs \
         --min-size 2 \
-        --max-size 2 \
+        --max-size 4 \
         --desired-capacity 2 \
         --vpc-zone-identifier "REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2" \
         --tags ResourceId=REPLACE_PREFIX_CODE-asg-ecs,ResourceType=auto-scaling-group,Key=Name,Value=REPLACE_PREFIX_CODE-ecs-instance,PropagateAtLaunch=true
@@ -378,8 +378,20 @@ deploy_ecs_cluster() {
 
     echo "Creating capacity provider..."
     aws ecs create-capacity-provider \
-        --name REPLACE_PREFIX_CODE-capacity-ec2 \
-        --auto-scaling-group-provider autoScalingGroupArn=$ASG_ARN,managedScaling='{status=ENABLED,targetCapacity=80}'
+        --name wildlife-capacity-ec2 \
+        --auto-scaling-group-provider "{
+            \"autoScalingGroupArn\": \"$ASG_ARN\",
+            \"managedScaling\": {
+                \"status\": \"ENABLED\",
+                \"targetCapacity\": 100,
+                \"minimumScalingStepSize\": 1,
+                \"maximumScalingStepSize\": 10000,
+                \"instanceWarmupPeriod\": 300
+            },
+            \"managedTerminationProtection\": \"DISABLED\",
+            \"managedDraining\": \"ENABLED\"
+        }" \
+        --no-cli-pager
 
     echo "Configuring cluster capacity providers..."
     aws ecs put-cluster-capacity-providers \
