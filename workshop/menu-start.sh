@@ -486,7 +486,7 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-datadb-task \
         --desired-count 1 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-tcp,discoveryName=REPLACE_PREFIX_CODE-datadb,clientAliases=[{port=27017}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
@@ -501,7 +501,7 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
         --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
@@ -513,7 +513,7 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-alerts-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=alerts-http,discoveryName=REPLACE_PREFIX_CODE-alerts,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
@@ -525,7 +525,7 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
         --no-cli-pager
@@ -537,7 +537,7 @@ create_ecs_services() {
         --task-definition REPLACE_PREFIX_CODE-frontend-task \
         --desired-count 2 \
         --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_ALB],assignPublicIp=DISABLED}" \
+        --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=frontend-http,discoveryName=REPLACE_PREFIX_CODE-frontend,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --load-balancers "targetGroupArn=$TG_ARN,containerName=REPLACE_PREFIX_CODE-frontend,containerPort=5000" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -844,7 +844,7 @@ run_service_scaling_test() {
 run_capacity_scaling_test() {
     echo -e "${GREEN}Running Capacity Scaling Test...${NC}"
     
-    # Get ALB DNS for load testing
+    # AWS CLI COMMANDS: Get Application Load Balancer DNS name for capacity scaling load test
     ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
     
     if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
@@ -852,10 +852,14 @@ run_capacity_scaling_test() {
         return 1
     fi
     
+    echo -e "${CYAN}This test will trigger DataAPI service scaling which should trigger EC2 capacity scaling${NC}"
+    echo -e "${CYAN}Monitor ECS console and EC2 Auto Scaling Groups to see infrastructure scaling${NC}"
+    echo ""
+    
     # Show the command being executed
     echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run loadtest-capacity-scaling.js${NC}"
     
-    # Run k6 test with ALB URL
+    # Run k6 test with ALB URL - this should trigger DataAPI scaling and then capacity scaling
     ALB_URL="http://$ALB_DNS" k6 run loadtest-capacity-scaling.js
 }
 
