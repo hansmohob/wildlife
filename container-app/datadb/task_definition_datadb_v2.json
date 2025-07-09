@@ -71,17 +71,5 @@
             }
         }
     ],
-    "volumes": [
-        {
-            "name": "mongodb-data",
-            "efsVolumeConfiguration": {
-                "fileSystemId": "REPLACE_EFS_ID",
-                "rootDirectory": "/",
-                "transitEncryption": "ENABLED",
-                "authorizationConfig": {
-                    "iam": "ENABLED"
-                }
-            }
-        }
-    ]
+    "volumes": []
 }

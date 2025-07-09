@@ -29,13 +29,6 @@
                     "value": "localhost:2000"
                 }
             ],
-            "mountPoints": [
-                {
-                    "sourceVolume": "mongodb-data",
-                    "containerPath": "/data/db",
-                    "readOnly": false
-                }
-            ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
