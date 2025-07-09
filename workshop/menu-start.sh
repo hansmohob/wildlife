@@ -63,6 +63,7 @@ EXEC_fix_image_upload=0
 EXEC_fix_gps_data=0
 EXEC_create_efs_storage=0
 EXEC_configure_service_scaling=0
+EXEC_configure_capacity_scaling=0
 EXEC_cleanup_services=0
 EXEC_cleanup_load_balancer=0
 EXEC_cleanup_cluster=0
@@ -75,6 +76,7 @@ EXEC_cleanup_docker=0
 EXEC_full_build=0
 EXEC_show_app_url=0
 EXEC_run_service_scaling_test=0
+EXEC_run_capacity_scaling_test=0
 EXEC_full_cleanup=0
 EXEC_deploy_adot=0
 EOF
@@ -86,7 +88,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test full_cleanup deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling configure_capacity_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test run_capacity_scaling_test full_cleanup deploy_adot; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -139,10 +141,12 @@ declare -a MENU_ITEMS=(
 
     # OPERATE COMMANDS
     "configure_service_scaling|Configure Service Auto Scaling|OPERATE"
+    "configure_capacity_scaling|Configure Capacity Auto Scaling|OPERATE"
     
     # QUICK ACTIONS
     "show_app_url|Show Application URL|QUICK"
     "run_service_scaling_test|Run Service Scaling Test|QUICK"
+    "run_capacity_scaling_test|Run Capacity Scaling Test|QUICK"
     "full_build|Full Build (All Build Commands)|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
     
@@ -713,6 +717,36 @@ configure_service_scaling() {
     echo -e "${GREEN}✅ Service Auto Scaling configured${NC}"
 }
 
+configure_capacity_scaling() {
+    echo -e "${GREEN}Configuring Capacity Auto Scaling...${NC}"
+    
+    # AWS CLI COMMANDS: Configure ECS service auto scaling for DataAPI to trigger capacity scaling
+    echo "Configuring DataAPI service auto scaling..."
+    aws application-autoscaling register-scalable-target \
+        --service-namespace ecs \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-dataapi-service \
+        --scalable-dimension ecs:service:DesiredCount \
+        --min-capacity 2 \
+        --max-capacity 6 \
+        --no-cli-pager
+    
+    aws application-autoscaling put-scaling-policy \
+        --service-namespace ecs \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-dataapi-service \
+        --policy-name REPLACE_PREFIX_CODE-dataapi-cpu-scaling \
+        --policy-type TargetTrackingScaling \
+        --target-tracking-scaling-policy-configuration '{
+            "TargetValue": 70.0,
+            "PredefinedMetricSpecification": {
+                "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+            }
+        }' \
+        --no-cli-pager
+    
+    echo -e "${GREEN}✅ Capacity Auto Scaling configured${NC}"
+    echo "DataAPI service will scale when CPU > 70%, triggering infrastructure scaling"
+}
+
 deploy_adot() {
     echo -e "${GREEN}Deploying AWS Distro for OpenTelemetry (ADOT)...${NC}"
     echo "This will update task definitions to v2 with ADOT sidecar containers..."
@@ -805,6 +839,24 @@ run_service_scaling_test() {
     
     # Run k6 test with ALB URL
     ALB_URL="http://$ALB_DNS" k6 run loadtest-service-scaling.js
+}
+
+run_capacity_scaling_test() {
+    echo -e "${GREEN}Running Capacity Scaling Test...${NC}"
+    
+    # Get ALB DNS for load testing
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
+    
+    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
+        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
+        return 1
+    fi
+    
+    # Show the command being executed
+    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run loadtest-capacity-scaling.js${NC}"
+    
+    # Run k6 test with ALB URL
+    ALB_URL="http://$ALB_DNS" k6 run loadtest-capacity-scaling.js
 }
 
 full_build() {
