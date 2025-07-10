@@ -26,51 +26,41 @@ export let options = {
 };
 
 export default function() {
-  // Heavy data operations to stress the backend
-  let response1 = http.get(`${TARGET_URL}/api/animals`, {
-    headers: {
-      'User-Agent': 'k6-capacity-scaling-test/1.0',
-    },
-  });
+  // Multiple concurrent requests to overwhelm the service
+  const requests = [];
   
-  check(response1, {
-    'animals API status is 200': (r) => r.status === 200,
-  });
+  // Create 10 concurrent GET requests per VU to really stress the system
+  for (let i = 0; i < 10; i++) {
+    requests.push(['GET', `${TARGET_URL}/api/animals?limit=100&offset=${i * 10}`, null, {
+      headers: { 'User-Agent': 'k6-capacity-scaling-test/1.0' }
+    }]);
+    
+    requests.push(['GET', `${TARGET_URL}/api/sightings?limit=50&offset=${i * 5}`, null, {
+      headers: { 'User-Agent': 'k6-capacity-scaling-test/1.0' }
+    }]);
+  }
   
-  // Multiple data requests to exhaust database connections
-  http.get(`${TARGET_URL}/api/sightings`);
-  http.get(`${TARGET_URL}/api/animals?limit=100`);
+  // POST operations to create database write load
+  for (let i = 0; i < 5; i++) {
+    const sightingData = {
+      species: `Load Test Species ${Math.random()}`,
+      habitat: 'Forest',
+      latitude: -20.2759 + (Math.random() - 0.5) * 0.1,
+      longitude: 57.5704 + (Math.random() - 0.5) * 0.1,
+      count: Math.floor(Math.random() * 10) + 1,
+      timestamp: new Date().toISOString()
+    };
+    
+    requests.push(['POST', `${TARGET_URL}/api/sightings`, JSON.stringify(sightingData), {
+      headers: { 'Content-Type': 'application/json' }
+    }]);
+  }
   
-  // POST operations to create database load
-  const sightingData = {
-    animal_id: Math.floor(Math.random() * 10) + 1,
-    location: `Test Location ${Math.random()}`,
-    sighting_date: new Date().toISOString(),
-    notes: `Load test sighting ${Math.random()}`
-  };
+  // Execute all requests concurrently
+  http.batch(requests);
   
-  http.post(`${TARGET_URL}/api/sightings`, JSON.stringify(sightingData), {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  
-  // Minimal delay to maintain pressure
-  sleep(0.2);
+  // Minimal delay to maintain maximum pressure
+  sleep(0.1);
 }
 
-export function handleSummary(data) {
-  const avgDuration = data.metrics.iteration_duration?.avg || 0;
-  const totalReqs = data.metrics.http_reqs?.count || 0;
-  const failureRate = data.metrics.http_req_failed?.rate || 0;
-  const avgResponseTime = data.metrics.http_req_duration?.avg || 0;
-  
-  return {
-    'stdout': `
-🎯 K6 Capacity Scaling Test Results
-==================================
-Duration: ${avgDuration.toFixed(2)}ms avg
-Requests: ${totalReqs} total
-Failures: ${(failureRate * 100).toFixed(1)}% failure rate
-Response Time: ${avgResponseTime.toFixed(2)}ms avg
-`,
-  };
-}
+// Removed custom handleSummary - using default k6 output which shows all metrics properly

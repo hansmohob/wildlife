@@ -51,20 +51,4 @@ export default function() {
   http.get(TARGET_URL);
 }
 
-export function handleSummary(data) {
-  const avgDuration = data.metrics.iteration_duration?.avg || 0;
-  const totalReqs = data.metrics.http_reqs?.count || 0;
-  const failureRate = data.metrics.http_req_failed?.rate || 0;
-  const avgResponseTime = data.metrics.http_req_duration?.avg || 0;
-  
-  return {
-    'stdout': `
-🎯 K6 Service Scaling Test Results
-=================================
-Duration: ${avgDuration.toFixed(2)}ms avg
-Requests: ${totalReqs} total
-Failures: ${(failureRate * 100).toFixed(1)}% failure rate
-Response Time: ${avgResponseTime.toFixed(2)}ms avg
-`,
-  };
-}
+// Removed custom handleSummary - using default k6 output which shows all metrics properly
