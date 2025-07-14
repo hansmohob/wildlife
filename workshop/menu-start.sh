@@ -720,6 +720,24 @@ configure_service_scaling() {
     echo -e "${GREEN}✅ Service Auto Scaling configured${NC}"
 }
 
+run_service_scaling_test() {
+    echo -e "${GREEN}Running Service Scaling Test...${NC}"
+    
+    # Get ALB DNS for load testing
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
+    
+    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
+        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
+        return 1
+    fi
+    
+    # Show the command being executed
+    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run /home/ec2-user/workspace/my-workspace/workshop/loadtest-service-scaling.js${NC}"
+    
+    # Run k6 test with ALB URL
+    ALB_URL="http://$ALB_DNS" k6 run /home/ec2-user/workspace/my-workspace/workshop/loadtest-service-scaling.js
+}
+
 configure_capacity_scaling() {
     echo -e "${GREEN}Configuring Capacity Auto Scaling...${NC}"
     
@@ -755,6 +773,28 @@ configure_capacity_scaling() {
         --no-cli-pager
     
     echo -e "${GREEN}✅ Capacity Auto Scaling configured${NC}"
+}
+
+run_capacity_scaling_test() {
+    echo -e "${GREEN}Running Capacity Scaling Test...${NC}"
+    
+    # AWS CLI COMMANDS: Get Application Load Balancer DNS name for capacity scaling load test
+    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
+    
+    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
+        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
+        return 1
+    fi
+    
+    echo -e "${CYAN}This test will trigger DataAPI service scaling which should trigger EC2 capacity scaling${NC}"
+    echo -e "${CYAN}Monitor ECS console and EC2 Auto Scaling Groups to see infrastructure scaling${NC}"
+    echo ""
+    
+    # Show the command being executed
+    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run /home/ec2-user/workspace/my-workspace/workshop/loadtest-capacity-scaling.js${NC}"
+    
+    # Run k6 test with ALB URL - this should trigger DataAPI scaling and then capacity scaling
+    ALB_URL="http://$ALB_DNS" k6 run /home/ec2-user/workspace/my-workspace/workshop/loadtest-capacity-scaling.js
 }
 
 check_status() {
@@ -794,46 +834,6 @@ show_app_url() {
     else
         echo -e "${YELLOW}Load balancer not found or not ready yet${NC}"
     fi
-}
-
-run_service_scaling_test() {
-    echo -e "${GREEN}Running Service Scaling Test...${NC}"
-    
-    # Get ALB DNS for load testing
-    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
-    
-    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
-        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
-        return 1
-    fi
-    
-    # Show the command being executed
-    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run loadtest-service-scaling.js${NC}"
-    
-    # Run k6 test with ALB URL
-    ALB_URL="http://$ALB_DNS" k6 run loadtest-service-scaling.js
-}
-
-run_capacity_scaling_test() {
-    echo -e "${GREEN}Running Capacity Scaling Test...${NC}"
-    
-    # AWS CLI COMMANDS: Get Application Load Balancer DNS name for capacity scaling load test
-    ALB_DNS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text --region REPLACE_AWS_REGION 2>/dev/null)
-    
-    if [ "$ALB_DNS" = "None" ] || [ "$ALB_DNS" = "" ]; then
-        echo -e "${RED}❌ Wildlife ALB not found. Deploy containerized app first.${NC}"
-        return 1
-    fi
-    
-    echo -e "${CYAN}This test will trigger DataAPI service scaling which should trigger EC2 capacity scaling${NC}"
-    echo -e "${CYAN}Monitor ECS console and EC2 Auto Scaling Groups to see infrastructure scaling${NC}"
-    echo ""
-    
-    # Show the command being executed
-    echo -e "${CYAN}Command: ALB_URL=http://$ALB_DNS k6 run loadtest-capacity-scaling.js${NC}"
-    
-    # Run k6 test with ALB URL - this should trigger DataAPI scaling and then capacity scaling
-    ALB_URL="http://$ALB_DNS" k6 run loadtest-capacity-scaling.js
 }
 
 full_build() {
