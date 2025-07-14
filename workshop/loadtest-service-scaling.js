@@ -27,10 +27,10 @@ export let options = {
 };
 
 export default function() {
-  // Make multiple requests to increase CPU load per user
-  let response1 = http.get(TARGET_URL, {
+  // Make multiple requests to increase CPU load per user - targeting media service
+  let response1 = http.get(`${TARGET_URL}/api/sightings`, {
     headers: {
-      'User-Agent': 'k6-scaling-test/1.0',
+      'User-Agent': 'k6-capacity-scaling-test/1.0',
     },
   });
   
@@ -40,15 +40,20 @@ export default function() {
     'response time < 5s': (r) => r.timings.duration < 5000,
   });
   
-  // Add more requests to stress the frontend harder
-  http.get(`${TARGET_URL}/api/animals`);
-  http.get(`${TARGET_URL}/api/sightings`);
+  // Add more requests to stress the media service harder
+  http.get(`${TARGET_URL}/api/sightings?limit=50`);
+  http.post(`${TARGET_URL}/api/sightings`, {
+    species: `Load Test Species ${Math.random()}`,
+    habitat: 'Forest',
+    latitude: (-20.2759 + (Math.random() - 0.5) * 0.1).toString(),
+    longitude: (57.5704 + (Math.random() - 0.5) * 0.1).toString(),
+    count: (Math.floor(Math.random() * 10) + 1).toString(),
+    description: `Load test sighting - ${new Date().toISOString()}`
+  });
   
   // Add a small delay but keep pressure high
   sleep(0.3);
   
-  // Additional request burst to really stress CPU
-  http.get(TARGET_URL);
+  // Additional request burst to really stress media service CPU
+  http.get(`${TARGET_URL}/api/images/sightings/20250714/test_image_${Math.floor(Math.random() * 10)}.jpg`);
 }
-
-// Removed custom handleSummary - using default k6 output which shows all metrics properly

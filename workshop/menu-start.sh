@@ -748,11 +748,11 @@ configure_capacity_scaling() {
         --max-size 4 \
         --no-cli-pager
     
-    # AWS CLI COMMANDS: Configure ECS service auto scaling for DataAPI to trigger capacity scaling
-    echo "Configuring DataAPI service auto scaling..."
+    # AWS CLI COMMANDS: Configure ECS service auto scaling for Media service to trigger capacity scaling
+    echo "Configuring media service auto scaling..."
     aws application-autoscaling register-scalable-target \
         --service-namespace ecs \
-        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-dataapi-service \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-media-service \
         --scalable-dimension ecs:service:DesiredCount \
         --min-capacity 2 \
         --max-capacity 6 \
@@ -760,9 +760,9 @@ configure_capacity_scaling() {
     
     aws application-autoscaling put-scaling-policy \
         --service-namespace ecs \
-        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-dataapi-service \
+        --resource-id service/REPLACE_PREFIX_CODE-ecs/REPLACE_PREFIX_CODE-media-service \
         --scalable-dimension ecs:service:DesiredCount \
-        --policy-name REPLACE_PREFIX_CODE-dataapi-cpu-scaling \
+        --policy-name REPLACE_PREFIX_CODE-media-cpu-scaling \
         --policy-type TargetTrackingScaling \
         --target-tracking-scaling-policy-configuration '{
             "TargetValue": 70.0,

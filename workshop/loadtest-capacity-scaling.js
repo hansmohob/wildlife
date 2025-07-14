@@ -62,5 +62,3 @@ export default function() {
   // Minimal delay to maintain maximum pressure
   sleep(0.1);
 }
-
-// Removed custom handleSummary - using default k6 output which shows all metrics properly
