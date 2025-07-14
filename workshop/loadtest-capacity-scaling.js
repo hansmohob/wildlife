@@ -7,22 +7,22 @@ const TARGET_URL = `${ALB_URL}/wildlife`;
 
 export let options = {
   stages: [
-    // Aggressive ramp-up to trigger scaling Media service scaling
-    { duration: '30s', target: 150 },   // Quick spike to 150 users
-    { duration: '1m', target: 250 },    // Push much higher to ensure CPU > 70%
-    { duration: '2m', target: 300 },    // Peak load to trigger multiple scale-outs
+    // Aggressive ramp-up to force media service beyond 7 task capacity
+    { duration: '30s', target: 500 },   // Quick spike to 300 users
+    { duration: '30s', target: 1000 },    // Push to 600 users
+    { duration: '30s', target: 1500 },    // Peak load to force 5-6 media tasks
     
-    // Sustained high load to see scaling events
-    { duration: '4m', target: 300 },    // Hold peak load
+    // Sustained very high load to trigger EC2 capacity scaling
+    { duration: '6m', target: 2000 },   // Maximum load to exceed EC2 capacity
     
-    // Quick ramp-down
+    // Gradual ramp-down to observe scaling behavior
+    { duration: '1m', target: 500 },    // Gradual drop
     { duration: '1m', target: 100 },    // Quick drop
-    { duration: '1m', target: 50 },     // Light load
-    { duration: '30s', target: 0 },     // Complete drop
+    { duration: '30s', target: 0 },      // Complete drop
   ],
   thresholds: {
-    http_req_duration: ['p(95)<3000'], // 95% of requests under 3s
-    http_req_failed: ['rate<0.15'],    // Less than 15% failures
+    http_req_duration: ['p(95)<4000'], // More lenient for higher load
+    http_req_failed: ['rate<0.2'],     // Expect some failures under heavy load
   },
 };
 
@@ -52,7 +52,7 @@ export default function() {
   });
   
   // Add a small delay but keep pressure high
-  sleep(0.3);
+  sleep(0.1);
   
   // Additional request burst to really stress CPU
   http.get(`${TARGET_URL}/api/images/sightings/20250714/test_image_${Math.floor(Math.random() * 10)}.jpg`);
