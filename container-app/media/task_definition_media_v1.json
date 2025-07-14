@@ -2,7 +2,7 @@
     "family": "wildlife-media-task",
     "requiresCompatibilities": ["EC2"],
     "cpu": "512",
-    "memory": "1024",
+    "memory": "512",
     "runtimePlatform": {
         "operatingSystemFamily": "LINUX",
         "cpuArchitecture": "ARM64"
