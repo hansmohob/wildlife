@@ -63,15 +63,5 @@
                 }
             }
         }
-    ],
-    "volumes": [
-        {
-            "name": "mongodb-data",
-            "dockerVolumeConfiguration": {
-                "scope": "shared",
-                "autoprovision": true,
-                "driver": "local"
-            }
-        }
     ]
 }

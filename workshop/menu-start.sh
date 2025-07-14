@@ -45,6 +45,7 @@ create_vars_file() {
         cat > "$VARS_FILE" << 'EOF'
 # Wildlife Application Variables
 EFS_ID=""
+ACCESS_POINT_ID=""
 ALB_ARN=""
 ALB_DNS=""
 TG_ARN=""
@@ -403,6 +404,9 @@ deploy_ecs_cluster() {
         --capacity-providers FARGATE FARGATE_SPOT REPLACE_PREFIX_CODE-capacity-ec2 \
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
+    echo "Waiting for EC2 instances to register..."
+    until [ "$(aws ecs describe-clusters --clusters wildlife-ecs --query 'clusters[0].registeredContainerInstancesCount' --output text)" -gt 0 ]; do sleep 10; done
+
     echo -e "${GREEN}✅ ECS Cluster deployed${NC}"
 }
 
@@ -657,10 +661,22 @@ create_efs_storage() {
         sleep 10
     done
 
-    echo "Updating task definition with EFS ID: $EFS_ID !MAKE SURE FILE IS CLOSED!"
+        echo "Creating EFS access point..."
+    ACCESS_POINT_ID=$(aws efs create-access-point \
+        --file-system-id $EFS_ID \
+        --posix-user Uid=999,Gid=999 \
+        --root-directory Path="/mongodb",CreationInfo='{OwnerUid=999,OwnerGid=999,Permissions=755}' \
+        --query 'AccessPointId' \
+        --output text)
+    
+    echo "Access Point created: $ACCESS_POINT_ID"
+    save_variable "ACCESS_POINT_ID" "$ACCESS_POINT_ID"
+
+    echo "Updating task definition with EFS ID: $EFS_ID and Access Point ID: $ACCESS_POINT_ID"
     save_variable "EFS_ID" "$EFS_ID"
     sleep 10
     sed -i "s/REPLACE_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+    sed -i "s/REPLACE_ACCESS_POINT_ID/$ACCESS_POINT_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
 
     aws ecs register-task-definition \
         --cli-input-json file:///home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json \
@@ -752,43 +768,6 @@ configure_capacity_scaling() {
         --no-cli-pager
     
     echo -e "${GREEN}✅ Capacity Auto Scaling configured${NC}"
-}
-
-deploy_adot() {
-    echo -e "${GREEN}Deploying AWS Distro for OpenTelemetry (ADOT)...${NC}"
-    echo "This will update task definitions to v2 with ADOT sidecar containers..."
-    
-    echo "Updating alerts task definition..."
-    aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v2.json \
-        --no-cli-pager
-    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-alerts-service --task-definition REPLACE_PREFIX_CODE-alerts-task --force-new-deployment --no-cli-pager
-
-    echo "Updating datadb task definition..."
-    aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/datadb/task_definition_datadb_v3.json \
-        --no-cli-pager
-    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-datadb-service --task-definition REPLACE_PREFIX_CODE-datadb-task --force-new-deployment --no-cli-pager
-
-    echo "Updating dataapi task definition..."
-    aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v3.json \
-        --no-cli-pager
-    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-dataapi-service --task-definition REPLACE_PREFIX_CODE-dataapi-task --force-new-deployment --no-cli-pager
-
-    echo "Updating frontend task definition..."
-    aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v2.json \
-        --no-cli-pager
-    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-frontend-service --task-definition REPLACE_PREFIX_CODE-frontend-task --force-new-deployment --no-cli-pager
-
-    echo "Updating media task definition..."
-    aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v2.json \
-        --no-cli-pager
-    aws ecs update-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-media-service --task-definition REPLACE_PREFIX_CODE-media-task --force-new-deployment --no-cli-pager
-
-    echo -e "${GREEN}✅ ADOT deployment completed${NC}"
 }
 
 check_status() {
@@ -1048,12 +1027,14 @@ cleanup_efs() {
         aws efs delete-file-system --file-system-id $EFS_ID --no-cli-pager 2>/dev/null
     done
     
-    # Reset task definition back to placeholder
-    echo "Resetting task definition placeholder..."
+    # Reset task definition back to placeholders
+    echo "Resetting task definition placeholders..."
     sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
-    
+    sed -i 's/"accessPointId": "fsap-[^"]*"/"accessPointId": "REPLACE_ACCESS_POINT_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
+
     # Clear EFS_ID variable
     save_variable "EFS_ID" ""
+    save_variable "ACCESS_POINT_ID" ""
     
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
 }

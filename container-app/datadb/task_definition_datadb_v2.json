@@ -8,7 +8,7 @@
         "cpuArchitecture": "ARM64"
     },
     "networkMode": "awsvpc",
-    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-ecs-task-execution",
+    "executionRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecs-task-execution",
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecs-task",
     "containerDefinitions": [
         {
@@ -71,5 +71,16 @@
             }
         }
     ],
-    "volumes": []
+    "volumes": [
+        {
+            "name": "mongodb-data",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "REPLACE_EFS_ID",
+                "transitEncryption": "ENABLED",
+                "authorizationConfig": {
+                    "accessPointId": "REPLACE_ACCESS_POINT_ID"
+                }
+            }
+        }
+    ]
 }
