@@ -765,7 +765,7 @@ configure_capacity_scaling() {
         --policy-name REPLACE_PREFIX_CODE-media-cpu-scaling \
         --policy-type TargetTrackingScaling \
         --target-tracking-scaling-policy-configuration '{
-            "TargetValue": 70.0,
+            "TargetValue": 50.0,
             "PredefinedMetricSpecification": {
                 "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
             }
@@ -891,6 +891,7 @@ cleanup_services() {
     aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-alerts-service --force --no-cli-pager
     aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-dataapi-service --force --no-cli-pager
     aws ecs delete-service --cluster REPLACE_PREFIX_CODE-ecs --service REPLACE_PREFIX_CODE-datadb-service --force --no-cli-pager
+    
     echo -e "${GREEN}✅ ECS Services deleted${NC}"
 }
 
