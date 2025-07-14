@@ -45,7 +45,6 @@ create_vars_file() {
         cat > "$VARS_FILE" << 'EOF'
 # Wildlife Application Variables
 EFS_ID=""
-ACCESS_POINT_ID=""
 ALB_ARN=""
 ALB_DNS=""
 TG_ARN=""
@@ -661,22 +660,10 @@ create_efs_storage() {
         sleep 10
     done
 
-        echo "Creating EFS access point..."
-    ACCESS_POINT_ID=$(aws efs create-access-point \
-        --file-system-id $EFS_ID \
-        --posix-user Uid=999,Gid=999 \
-        --root-directory Path="/mongodb",CreationInfo='{OwnerUid=999,OwnerGid=999,Permissions=755}' \
-        --query 'AccessPointId' \
-        --output text)
-    
-    echo "Access Point created: $ACCESS_POINT_ID"
-    save_variable "ACCESS_POINT_ID" "$ACCESS_POINT_ID"
-
-    echo "Updating task definition with EFS ID: $EFS_ID and Access Point ID: $ACCESS_POINT_ID"
+    echo "Updating task definition with EFS ID: $EFS_ID"
     save_variable "EFS_ID" "$EFS_ID"
     sleep 10
     sed -i "s/REPLACE_EFS_ID/$EFS_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
-    sed -i "s/REPLACE_ACCESS_POINT_ID/$ACCESS_POINT_ID/g" /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
 
     aws ecs register-task-definition \
         --cli-input-json file:///home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json \
@@ -1005,14 +992,8 @@ cleanup_vpc_endpoints() {
 cleanup_efs() {
     echo -e "${RED}Deleting EFS Storage...${NC}"
     
-    # AWS CLI COMMANDS: Delete EFS file systems, access points, and mount targets
+    # AWS CLI COMMANDS: Delete EFS file systems and mount targets
     EFS_FILESYSTEMS=$(aws efs describe-file-systems --query 'FileSystems[?Tags[?Key==`Name` && contains(Value, `REPLACE_PREFIX_CODE-mongodb-efs`)]].FileSystemId' --output text 2>/dev/null)
-    for EFS_ID in $EFS_FILESYSTEMS; do
-        echo "Deleting access points for $EFS_ID..."
-        ACCESS_POINTS=$(aws efs describe-access-points --file-system-id $EFS_ID --query 'AccessPoints[].AccessPointId' --output text 2>/dev/null)
-        for AP_ID in $ACCESS_POINTS; do
-            aws efs delete-access-point --access-point-id $AP_ID --no-cli-pager 2>/dev/null
-        done
         
         echo "Deleting mount targets for $EFS_ID..."
         MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'MountTargets[].MountTargetId' --output text 2>/dev/null)
@@ -1030,11 +1011,9 @@ cleanup_efs() {
     # Reset task definition back to placeholders
     echo "Resetting task definition placeholders..."
     sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
-    sed -i 's/"accessPointId": "fsap-[^"]*"/"accessPointId": "REPLACE_ACCESS_POINT_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
 
     # Clear EFS_ID variable
     save_variable "EFS_ID" ""
-    save_variable "ACCESS_POINT_ID" ""
     
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
 }

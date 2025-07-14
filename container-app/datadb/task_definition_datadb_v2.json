@@ -16,6 +16,7 @@
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/datadb:latest",
             "essential": true,
             "readonlyRootFilesystem": false,
+            "user": "0:0",
             "portMappings": [
                 {
                     "containerPort": 27017,
@@ -75,11 +76,8 @@
         {
             "name": "mongodb-data",
             "efsVolumeConfiguration": {
-                "fileSystemId": "REPLACE_EFS_ID",
-                "transitEncryption": "ENABLED",
-                "authorizationConfig": {
-                    "accessPointId": "REPLACE_ACCESS_POINT_ID"
-                }
+                "fileSystemId": "fs-06e9fd6a5b20b70c6",
+                "rootDirectory": "/mongodb"
             }
         }
     ]
