@@ -10,7 +10,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variables file for persistence
-VARS_FILE="/home/ec2-user/workspace/my-workspace/menu-vars.env"
+VARS_FILE="/home/ec2-user/workspace/my-workspace/workshop/menu-vars.env"
 
 # Execution tracking
 declare -A EXECUTION_COUNT=()
@@ -503,7 +503,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-dataapi-service \
         --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
-        --capacity-provider-strategy capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+        --capacity-provider-strategy FARGATE \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -527,7 +527,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-media-service \
         --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
-        --launch-type FARGATE \
+        --launch-type capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -1067,7 +1067,8 @@ full_cleanup() {
         cleanup_vpc_endpoints && \
         cleanup_efs && \
         cleanup_ecr && \
-        cleanup_docker
+        cleanup_docker && \
+        rm -f "$VARS_FILE"
         
         echo ""
         echo -e "${GREEN}🎯 Complete cleanup finished!${NC}"
