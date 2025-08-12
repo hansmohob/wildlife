@@ -113,7 +113,7 @@ show_header() {
     clear
     echo -e "${PURPLE}================================================================${NC}"
     echo -e "${PURPLE}                    AWS 101 - Containers                         ${NC}"
-    echo -e "${PURPLE}                    Wildlife Ranger Tool!                        ${NC}"
+    echo -e "${PURPLE}                      Workshop Helper                        ${NC}"
     echo -e "${PURPLE}================================================================${NC}"
     echo ""
 }
