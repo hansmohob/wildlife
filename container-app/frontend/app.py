@@ -104,8 +104,8 @@ def get_sightings():
     try:
         logger.info("Getting sightings")
         response = connect_with_retry(
-            lambda: requests.get('http://wildlife-media.wildlife:5000/wildlife/api/sightings'),
-            'Media Service (wildlife-media)'
+            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings'),
+            'DataAPI Service (wildlife-dataapi)'
         )
         return response.content, response.status_code, response.headers.items()
     except Exception as e:
