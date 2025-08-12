@@ -17,6 +17,7 @@ Metadata:
           - DeployPipeline
           - RotateSecret
           - AutoSetDeveloperProfile
+          - InstallDotNet
       - Label:
           default: Compute settings
         Parameters:
@@ -68,6 +69,13 @@ Parameters:
       - true
       - false
     Description: Automatically set Developer profile as default in code-server terminal sessions without requiring elevation
+  InstallDotNet:
+    Type: String
+    Default: false
+    Description: "Install .NET SDK"
+    AllowedValues:
+      - true
+      - false
   CodeServerVersion:
     Type: String
     Default: "4.99.3"
@@ -165,7 +173,6 @@ Conditions:
   EnableRotation: !Equals [!Ref RotateSecret, "true"]
   IsArm64: !Equals [!Ref InstanceArchitecture, 'arm64']
   HasS3Assets: !Not [!Equals [!Ref S3AssetBucket, ""]]
-
 
 Resources:
   ### Resource Group - Groups all AWS resources for easy management and tracking
@@ -316,7 +323,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       KmsKeyId: !GetAtt kmskey.Arn
-      LogGroupName: !Sub /aws/events/${PrefixCode}-vpcflowlog
+      LogGroupName: !Sub /aws/vpc/${PrefixCode}-flowlogs
       RetentionInDays: 30
       Tags:
         - Key: Name
@@ -1085,8 +1092,8 @@ Resources:
                   - logs:PutLogEvents
                   - logs:DescribeLogStreams
                 Resource:
-                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/code-server/${PrefixCode}
-                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/code-server/${PrefixCode}:*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ec2/${PrefixCode}-codeserver
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ec2/${PrefixCode}-codeserver:*
         - PolicyName: !Sub ${PrefixCode}-iampolicy-codeserver-KMS
           PolicyDocument:
             Version: 2012-10-17
@@ -1170,7 +1177,7 @@ Resources:
   ec2loggroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/code-server/${PrefixCode}
+      LogGroupName: !Sub /aws/ec2/${PrefixCode}-codeserver
       RetentionInDays: 14
       Tags:
         - Key: Name
@@ -1196,7 +1203,7 @@ Resources:
                 "collect_list": [
                   {
                     "file_path": "/var/log/cloud-init-output.log",
-                    "log_group_name": "/aws/code-server/${PrefixCode}",
+                    "log_group_name": "/aws/ec2/${PrefixCode}-codeserver",
                     "log_stream_name": "setup"
                   }
                 ]
@@ -1236,240 +1243,110 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          # This script sets up a persistent boot script using cloud-init
 
+          echo "INFO: Starting bootstrap process at $(date)"
+
+          # Define all variables
+          ENV_FILE="/etc/devbox-env.sh" # Environment variables file
+          STATUS_FILE="/var/lib/cloud/instance/setup-status.log" # Installation status tracking file
+          GITHUB_RAW_URL="https://raw.githubusercontent.com/hansmohob/wildlife/refs/heads/main/workshop/devbox-setup.sh" # URL to download setup script
+          SETUP_SCRIPT="/var/lib/cloud/scripts/per-boot/setup.sh" # Location of the setup script (runs on every boot)
+          SETUP_LOG="/var/log/devbox-setup.log" # Log file for setup script output
+
+          # Create environment file with all necessary variables
+          cat > $ENV_FILE << EOF
+          # Environment variables for setup
+
+          # Package version variables
+          export BOTO3_VERSION="1.37.18"
+          export UV_PYTHON_VERSION="3.13"
+          export MCP_PYTHON_VERSION="3.13"
+          export UV_VERSION="latest"
+          # might not need below line
+          export UVENV_VERSION="latest"
+          export GIT_REMOTE_S3_VERSION="latest"
+          export DOTNET_VERSION="8.0"
+          export MONGODB_VERSION="8.0"
+          export K6_VERSION="0.57.0"
+
+          # Variables from CloudFormation template
+          export AWS_ACCOUNT_ID="${AWS::AccountId}"
+          export AWS_REGION="${AWS::Region}"
+          export PREFIX_CODE="${PrefixCode}"
+          export VPC_ID="${vpc01}"
+          export PRIVATE_SUBNET_1="${subnetprivate01}"
+          export PRIVATE_SUBNET_2="${subnetprivate02}"
+          export PUBLIC_SUBNET_1="${subnetpublic01}"
+          export PUBLIC_SUBNET_2="${subnetpublic02}"
+          export SECURITY_GROUP_APP="${securitygroupcodeserver}"
+          export SECURITY_GROUP_ALB="${securitygroupalb}"
+          export S3_BUCKET_GIT="${s3bucketgit}"
+          export S3_BUCKET_LOGS="${s3bucketlogs}"
+          export INSTANCE_ARCHITECTURE="${InstanceArchitecture}"
+          export CODE_SERVER_VERSION="${CodeServerVersion}"
+          export GITHUB_REPO="${GitHubRepo}"
+          export AUTO_SET_DEVELOPER_PROFILE="${AutoSetDeveloperProfile}"
+          export S3_ASSET_BUCKET="${S3AssetBucket}"
+          export S3_ASSET_PREFIX="${S3AssetPrefix}"
+          export SECRET_CODE_SERVER="${secretcodeserver}"
+          export INSTALL_DOTNET="${InstallDotNet}"
+          export S3_BUCKET_WILDLIFE="${s3bucketwildlife}"
+          export CLOUDFRONT_DISTRIBUTION_ID="${cloudfrontdistributioncodeserver}"
+          EOF
+
+          # Make it readable by everyone but only writable by root
+          chmod 644 $ENV_FILE
+
+          # Wait for SSM agent initialization
           echo "INFO: Waiting for SSM agent initialization..."
           until systemctl is-active --quiet amazon-ssm-agent; do
             echo "INFO: SSM agent is not ready..."
             systemctl status amazon-ssm-agent
             sleep 5
           done
-          echo "INFO: Installing packages including CloudWatch agent"
-          dnf update -y -q
-          dnf install amazon-cloudwatch-agent -y -q
 
-          echo "INFO: Configuring CloudWatch agent..."
-          until aws ssm get-parameter --name /${PrefixCode}/config/AmazonCloudWatch-linux --region ${AWS::Region} &> /dev/null; do
-            echo "INFO: SSM parameter is not ready..."
-            sleep 5
-          done
-          aws ssm get-parameter --name /${PrefixCode}/config/AmazonCloudWatch-linux --region ${AWS::Region} --query "Parameter.Value" --output text > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+          # Initialize status tracking file
+          touch $STATUS_FILE
 
-          echo "INFO: Installing Session Manager plugin..."
-          dnf install -y https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_$([ "${InstanceArchitecture}" = "arm64" ] && echo "arm64" || echo "64bit")/session-manager-plugin.rpm
+          # Download the setup script from GitHub and place it in per-boot directory
+          echo "INFO: Downloading setup script from GitHub"
+          curl -s -o $SETUP_SCRIPT $GITHUB_RAW_URL
+          chmod +x $SETUP_SCRIPT
 
-          echo "INFO: Creating AWS profile for developer role..."
-          su - ec2-user -c "mkdir -p ~/.aws"
-          su - ec2-user -c "cat > ~/.aws/config << EOF
-          [profile developer]
-          role_arn = arn:aws:iam::${AWS::AccountId}:role/${PrefixCode}-iamrole-developer
-          credential_source = Ec2InstanceMetadata
-          region = ${AWS::Region}
-          EOF"
+          # Run the setup script for the first time
+          echo "INFO: Running initial setup"
+          source $ENV_FILE
+          $SETUP_SCRIPT
+          SETUP_EXIT_CODE=$?
 
-          #### START: CODE-SERVER BOOTSTRAP ####
-          echo "INFO: Installing code-server version ${CodeServerVersion}..."
-          dnf install https://github.com/coder/code-server/releases/download/v${CodeServerVersion}/code-server-${CodeServerVersion}-${InstanceArchitecture}.rpm -y
-
-          echo "INFO: Configuring code-server"
-          mkdir -p /home/ec2-user/.config/code-server
-          mkdir -p /home/ec2-user/workspace
-          chown -R ec2-user:ec2-user /home/ec2-user/workspace
-
-          cat > /home/ec2-user/.config/code-server/config.yaml << EOF
-          bind-addr: 0.0.0.0:8080
-          auth: password
-          password: "$(aws secretsmanager get-secret-value --secret-id ${secretcodeserver} --region ${AWS::Region} --query SecretString --output text | jq -r .password)"
-          cert: false
-          EOF
-
-          chmod 600 /home/ec2-user/.config/code-server/config.yaml
-          chown -R ec2-user:ec2-user /home/ec2-user/.config
-
-          cat > /etc/systemd/system/code-server.service << EOF
-          [Unit]
-          Description=code-server
-          After=network.target
-
-          [Service]
-          Type=simple
-          User=ec2-user
-          Environment=HOME=/home/ec2-user
-          WorkingDirectory=/home/ec2-user/workspace
-          ExecStart=/usr/bin/code-server --config /home/ec2-user/.config/code-server/config.yaml
-          Restart=always
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-
-          echo "INFO: Configuring code-server workspace interface..."
-          mkdir -p /home/ec2-user/.local/share/code-server/User/
-          cat >> /home/ec2-user/.local/share/code-server/User/settings.json << EOF
-          {
-            "git.enabled": true,
-            "git.path": "/usr/bin/git",
-            "git.autofetch": true,
-            "window.menuBarVisibility": "classic",
-            "workbench.startupEditor": "none",
-            "workspace.openFilesInNewWindow": "off",
-            "workbench.colorTheme": "Default Dark+"
-          }
-          EOF
-          chown -R ec2-user:ec2-user /home/ec2-user/.local
-
-          echo "INFO: Installing Terraform..."
-          dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-          dnf install -y terraform
-
-          echo "INFO: Installing Docker..."
-          dnf install -y docker
-          systemctl start docker
-          systemctl enable docker
-          usermod -aG docker ec2-user
-
-          echo "INFO: Installing extensions..."
-          su - ec2-user -c "code-server --install-extension amazonwebservices.amazon-q-vscode --force"
-          su - ec2-user -c "code-server --install-extension amazonwebservices.aws-toolkit-vscode --force"
-          su - ec2-user -c "code-server --install-extension hashicorp.terraform --force"
-          su - ec2-user -c "code-server --install-extension ms-azuretools.vscode-docker --force"
-
-          echo "INFO: Starting code-server service..."
-          systemctl enable code-server
-          systemctl start code-server
-          #### END: CODE-SERVER BOOTSTRAP ####
-
-          #### START: GIT-REMOTE-S3 BOOTSTRAP ####
-          echo "INFO: Installing git-remote-s3..."
-          dnf install git -y -q
-          dnf install -y python3 python3-pip
-          pip3 install boto3==1.37.18
-          pip3 install git-remote-s3
-
-          # Initialize git repo as ec2-user
-          echo "INFO: Configuring git..."
-          su - ec2-user -c "git config --global user.name 'EC2 User'"
-          su - ec2-user -c "git config --global user.email 'ec2-user@example.com'"
-          su - ec2-user -c "git config --global init.defaultBranch main"
-
-          # Initialize from either S3 or GitHub
-          if [ -n "${S3AssetBucket}" ]; then
-            echo "INFO: Initializing from S3 assets..."
-            su - ec2-user -c "mkdir -p /home/ec2-user/workspace/my-workspace && \
-                              cd /home/ec2-user/workspace/my-workspace && \
-                              aws s3 cp --recursive s3://${S3AssetBucket}/${S3AssetPrefix} ./ && \
-                              git init && \
-                              git add . && \
-                              git commit -m 'Initial commit from S3 assets' && \
-                              git remote add origin s3+zip://${s3bucketgit}/my-workspace && \
-                              git push -u origin main"
+          # Report setup status
+          if [ $SETUP_EXIT_CODE -eq 0 ]; then
+            echo "INFO: Setup completed successfully"
           else
-            echo "INFO: Cloning from GitHub..."
-            su - ec2-user -c "cd /home/ec2-user/workspace && \
-                              git clone ${GitHubRepo} my-workspace && \
-                              cd my-workspace && \
-                              git remote remove origin && \
-                              git remote add origin s3+zip://${s3bucketgit}/my-workspace && \
-                              git push -u origin main"
+            echo "ERROR: Setup failed with exit code $SETUP_EXIT_CODE"
+            echo "ERROR: Check $STATUS_FILE for details"
           fi
-          #### END: GIT-REMOTE-S3 BOOTSTRAP ####
 
-          #### START: SET DEVELOPER PROFILE AS DEFAULT ####
-          if [ "${AutoSetDeveloperProfile}" = "true" ]; then
-            echo "INFO: Setting up AWS profile defaults..."
-            su - ec2-user -c "echo 'export AWS_PROFILE=developer' >> ~/.bashrc"
-            su - ec2-user -c "echo 'export AWS_REGION=${AWS::Region}' >> ~/.bashrc"
-            su - ec2-user -c "echo 'export AWS_ACCOUNTID=${AWS::AccountId}' >> ~/.bashrc"
-          else
-            echo "INFO: Skipping AWS profile defaults..."
-          fi
-          #### END: SET DEVELOPER PROFILE AS DEFAULT ####
+          # Failsafe command
+          echo ""
+          echo "=================================================================="
+          echo "FAILSAFE COMMAND:"
+          echo "To manually download and run the latest setup script, execute:"
+          echo "sudo bash -c 'curl -s https://raw.githubusercontent.com/hansmohob/wildlife/refs/heads/main/workshop/devbox-setup.sh -o /tmp/setup.sh && chmod +x /tmp/setup.sh && source /etc/devbox-env.sh && /tmp/setup.sh'"
+          echo "=================================================================="
+          echo ""
 
-          #### START: AMAZON Q CLI ####
-          echo "INFO: Installing Q-Developer CLI..."
-          su - ec2-user -c "curl --proto '=https' --tlsv1.2 -sSf https://desktop-release.q.us-east-1.amazonaws.com/latest/q-$([ "${InstanceArchitecture}" = "arm64" ] && echo "aarch64" || echo "x86_64")-linux.zip -o q.zip"
-          su - ec2-user -c "unzip q.zip"
-          #TODO: Sort this bit - need IAM IDC before issuing this command
-          # su - ec2-user -c "./q/install.sh"
+          # Display important file locations
+          echo "INFO: Important file locations:"
+          echo "- Environment file: $ENV_FILE"
+          echo "- Setup script: $SETUP_SCRIPT"
+          echo "- Status file: $STATUS_FILE"
+          echo "- Setup log: $SETUP_LOG"
 
-          echo "INFO: Configuring Q-Developer CLI MCP for workspace..."
-          # Install Python 3.13
-          pip3 install uv
-          uv python install 3.13
-          
-          # Install uvenv and MCP servers
-          pip3 install uvenv
-          uvenv install --python 3.13 awslabs.terraform-mcp-server
-          uvenv install --python 3.13 awslabs.ecs-mcp-server
-          uvenv install --python 3.13 awslabs.eks-mcp-server
-          #### END: AMAZON Q CLI ####
-
-          #### START: WILDLIFE APPLICATION ####
-          echo "INFO: Installing MongoDB..."
-
-          cat > /etc/yum.repos.d/mongodb-org-8.0.repo << EOF
-          [mongodb-org-8.0]
-          name=MongoDB Repository
-          baseurl=https://repo.mongodb.org/yum/amazon/2023/mongodb-org/8.0/$([ "${InstanceArchitecture}" = "arm64" ] && echo "aarch64" || echo "x86_64")/
-          gpgcheck=1
-          enabled=1
-          gpgkey=https://pgp.mongodb.com/server-8.0.asc
-          EOF
-
-          dnf install -y mongodb-org
-          systemctl start mongod
-          systemctl enable mongod
-
-          echo "INFO: Installing Python packages..."
-          pip3 install -r /home/ec2-user/workspace/my-workspace/app-ec2/requirements.txt
-          chown -R ec2-user:ec2-user /home/ec2-user/workspace/my-workspace
-
-          cat > /etc/systemd/system/wildlife-app.service << EOF
-          [Unit]
-          Description=Wildlife Monitoring Application
-          After=network.target mongod.service
-
-          [Service]
-          User=ec2-user
-          Environment="PREFIX_CODE=${PrefixCode}" "AWS_ACCOUNT_ID=${AWS::AccountId}" "BUCKET_NAME=${s3bucketwildlife}" "AWS_REGION=${AWS::Region}"
-          WorkingDirectory=/home/ec2-user/workspace/my-workspace/app-ec2
-          ExecStart=/usr/bin/python3 app.py
-          Restart=always
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-
-          echo "INFO: Starting sample app..."
-          systemctl enable wildlife-app
-          systemctl start wildlife-app
-          #### END: WILDLIFE APPLICATION ####
-
-          #### START: WORKSHOP BOOTSTRAP ####
-          echo "INFO: Replacing environment variables in configuration files"
-          perl -i -pe "BEGIN{undef $/;} \
-              s/REPLACE_AWS_ACCOUNT_ID/${AWS::AccountId}/g; \
-              s/REPLACE_AWS_REGION/${AWS::Region}/g; \
-              s/REPLACE_PREFIX_CODE/${PrefixCode}/g; \
-              s/REPLACE_VPC_ID/${vpc01}/g; \
-              s/REPLACE_PRIVATE_SUBNET_1/${subnetprivate01}/g; \
-              s/REPLACE_PRIVATE_SUBNET_2/${subnetprivate02}/g; \
-              s/REPLACE_PUBLIC_SUBNET_1/${subnetpublic01}/g; \
-              s/REPLACE_PUBLIC_SUBNET_2/${subnetpublic02}/g; \
-              s/REPLACE_SECURITY_GROUP_APP/${securitygroupcodeserver}/g; \
-              s/REPLACE_SECURITY_GROUP_ALB/${securitygroupalb}/g; \
-              $(find /home/ec2-user/workspace/my-workspace \
-                  -name "task_definition_*.json" -o \
-                  -name "fast-forward.sh")
-
-          echo "INFO: Commiting file changes"
-          su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m 'Update env' && git push origin main"
-
-          echo "INFO: Installing k6 pinned version..."
-          curl -sLO "https://github.com/grafana/k6/releases/download/v0.57.0/k6-v0.57.0-linux-${InstanceArchitecture}.tar.gz"
-          tar -xzf k6-v0.57.0-linux-${InstanceArchitecture}.tar.gz -C /tmp
-          install -o root -g root -m 0755 /tmp/k6-v0.57.0-linux-${InstanceArchitecture}/k6 /usr/local/bin/k6
-          #### END: WORKSHOP BOOTSTRAP ####
+          echo "INFO: Bootstrap process completed at $(date)"
+          /opt/aws/bin/cfn-signal -e $SETUP_EXIT_CODE --stack ${AWS::StackName} --region ${AWS::Region} --resource=ec2codeserver
+          exit $SETUP_EXIT_CODE
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-ec2-codeserver
@@ -1481,6 +1358,10 @@ Resources:
           Value: compute
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT15M
     Metadata:
       cdk_nag:
         rules_to_suppress:
@@ -2112,11 +1993,11 @@ Resources:
     Type: AWS::Logs::LogGroup
     Condition: CreatePipeline
     Properties:
-      LogGroupName: !Sub /aws/events/${PrefixCode}-pipeline-trigger
+      LogGroupName: !Sub /aws/codepipeline/${PrefixCode}-pipeline
       RetentionInDays: 14
       Tags:
         - Key: Name
-          Value: !Sub ${PrefixCode}-pipeline-trigger
+          Value: !Sub ${PrefixCode}-pipelineloggroup
         - Key: provisioner
           Value: CFN
         - Key: solution
@@ -2459,7 +2340,7 @@ Resources:
               - "Resource::arn:<AWS::Partition>:ssm:<AWS::Region>:*:document/AWS-RunShellScript"
             reason: "Lambda requires CloudWatch Logs access and SSM RunShellScript document permissions. GetRandomPassword requires * resource."
 
-### Workshop pre-created resources
+  ### Workshop pre-created resources
 
   # Additional IAM policies for developer role
   iampolicywildlifeecr:
@@ -2581,18 +2462,6 @@ Resources:
                   - xray:GetSamplingTargets
                   - xray:GetSamplingStatisticSummaries
                 Resource: "*"
-        - PolicyName: !Sub ${PrefixCode}-iampolicy-s3
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
-                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-iamrole-ecs-task
@@ -2673,6 +2542,54 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
 
+  # Unattached policy for app wildlife S3 access          
+  iampolicymanagedwildlifes3:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PrefixCode}-iampolicy-s3
+      Description: "Policy for accessing the wildlife S3 bucket"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:GenerateDataKey
+            Resource:
+              - !GetAtt kmskey.Arn
+  # Unattached policy for app EFS access          
+  iampolicymanagedwildlifeefs:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PrefixCode}-iampolicy-efs
+      Description: "Policy for accessing the wildlife EFS file system"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - elasticfilesystem:ClientMount
+              - elasticfilesystem:ClientWrite
+              - elasticfilesystem:ClientRootAccess
+            Resource:
+              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*
+          - Effect: Allow
+            Action:
+              - elasticfilesystem:DescribeFileSystems
+              - elasticfilesystem:DescribeMountTargets
+            Resource:
+              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*
+              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:mount-target/*
+  
   # Additional VPC configuration
   subnetprivate02:
     Type: AWS::EC2::Subnet
@@ -2776,7 +2693,15 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::al2023-repos-*/*
               - !Sub arn:${AWS::Partition}:s3:::amazonlinux-2023-*
               - !Sub arn:${AWS::Partition}:s3:::amazonlinux-2023-*/*
-              - !Sub arn:${AWS::Partition}:s3:::prod-${AWS::Region}-starport-layer-bucket/* # For ECR over VPC Endpoint
+              # For ECR over VPC Endpoint
+              - !Sub arn:${AWS::Partition}:s3:::prod-${AWS::Region}-starport-layer-bucket/*
+              # Required for SSM
+              - !Sub arn:${AWS::Partition}:s3:::aws-windows-downloads-${AWS::Region}/*
+              - !Sub arn:${AWS::Partition}:s3:::amazon-ssm-${AWS::Region}/*
+              - !Sub arn:${AWS::Partition}:s3:::aws-ssm-${AWS::Region}/*
+              - !Sub arn:${AWS::Partition}:s3:::patch-baseline-snapshot-${AWS::Region}/*
+              - !Sub arn:${AWS::Partition}:s3:::aws-patch-manager-${AWS::Region}-*/*
+              - !Sub arn:${AWS::Partition}:s3:::aws-patchmanager-macos-${AWS::Region}-*/*
       RouteTableIds:
         - !Ref routetableprivate
         - !Ref routetableprivate02 
@@ -2934,6 +2859,25 @@ Resources:
       Roles:
         - !Ref iamroleecs
 
+  # Log group for Service Connect logs
+  ServiceConnectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/ecs/service-connect/${PrefixCode}-app
+      RetentionInDays: 14
+      KmsKeyId: !GetAtt kmskey.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${PrefixCode}-serviceconnectloggroup
+        - Key: provisioner
+          Value: CFN
+        - Key: solution
+          Value: !Sub ${SolutionTag}
+        - Key: resourcetype
+          Value: monitoring
+        - Key: environment
+          Value: !Sub ${EnvironmentTag}
+
   # Data Generation Lambda Function
   lambdagpswildlife:
     Type: AWS::Lambda::Function
@@ -3087,11 +3031,16 @@ Resources:
               - execute-api:Invoke
             Resource: 
               - !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:*
+          - Effect: Allow
+            Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource: "*"
     Metadata:
       cfn_nag:
         rules_to_suppress:
           - id: AwsSolutions-IAM5
-            reason: Lambda requires CloudWatch Logs access and ability to call API endpoint through CloudFront. Wildcard needed for execute-api invoke.
+            reason: Lambda requires CloudWatch Logs access, API endpoint access, and X-Ray tracing permissions. Wildcards needed for execute-api invoke and X-Ray trace segments.
   eventbridgerulegpswildlife:
     Type: AWS::Events::Rule
     Properties:
