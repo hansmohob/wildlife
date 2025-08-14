@@ -392,7 +392,7 @@ perl -i -pe "BEGIN{undef $/;}
     s/REPLACE_CLOUDFRONT_DISTRIBUTION_ID/${CLOUDFRONT_DISTRIBUTION_ID}/g" \
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
-        -name "menu-start.sh")
+        -name "workshop-helper.sh")
 
 su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m \"Update env\" && git push origin main"
 ' "Failed to replace environment variables or commit changes"
