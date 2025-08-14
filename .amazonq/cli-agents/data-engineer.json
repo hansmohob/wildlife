@@ -1,4 +1,11 @@
 {
+  "name": "data-engineer",
+  "description": "Data and analytics agent with AWS data services, ETL pipelines, and analytics tools",
+  "tools": ["*"],
+  "allowedTools": ["fs_read"],
+  "resources": [
+    "file://README.md"
+  ],
   "mcpServers": {
     "awslabs.core-mcp-server": {
       "command": "uvenv",
@@ -10,9 +17,7 @@
       ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "autoApprove": [],
-      "disabled": false
+      }
     },
     "awslabs.aws-documentation-mcp-server": {
       "command": "uvenv",
@@ -25,50 +30,55 @@
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR",
         "AWS_DOCUMENTATION_PARTITION": "aws"
-      },
-      "disabled": false,
-      "autoApprove": []
+      }
     },
-    "awslabs.ecs-mcp-server": {
+    "awslabs.s3-tables-mcp-server": {
       "command": "uvenv",
       "args": [
         "run",
         "--python",
         "3.13",
-        "awslabs.ecs-mcp-server"
+        "awslabs.s3-tables-mcp-server"
       ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "disabled": false,
-      "autoApprove": []
+      }
     },
-    "awslabs.eks-mcp-server": {
+    "awslabs.dynamodb-mcp-server": {
       "command": "uvenv",
       "args": [
         "run",
         "--python",
         "3.13",
-        "awslabs.eks-mcp-server",
-        "--",
-        "--allow-write"
+        "awslabs.dynamodb-mcp-server"
       ],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "disabled": false,
-      "autoApprove": []
+      }
     },
-    "hashicorp.terraform-mcp-server": {
-      "command": "docker",
+    "awslabs.cloudwatch-mcp-server": {
+      "command": "uvenv",
       "args": [
         "run",
-        "-i",
-        "--rm",
-        "hashicorp/terraform-mcp-server"
+        "--python",
+        "3.13",
+        "awslabs.cloudwatch-mcp-server"
       ],
-      "disabled": false,
-      "autoApprove": []
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "awslabs.redshift-mcp-server": {
+      "command": "uvenv",
+      "args": [
+        "run",
+        "--python",
+        "3.13",
+        "awslabs.redshift-mcp-server"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
     }
   }
 }
