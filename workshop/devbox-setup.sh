@@ -412,7 +412,7 @@ cat $STATUS_FILE
 echo "----------------------------------------"
 
 # Make menu system executable
-chmod +x /home/ec2-user/workspace/my-workspace/workshop/menu-start.sh
+chmod 700 /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh
 
 # Check if any steps failed
 if grep -q "\[FAILED\]" $STATUS_FILE; then
