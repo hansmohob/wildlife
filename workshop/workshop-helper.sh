@@ -995,7 +995,7 @@ cleanup_efs() {
     
     # AWS CLI COMMANDS: Delete EFS file systems and mount targets
     EFS_FILESYSTEMS=$(aws efs describe-file-systems --query 'FileSystems[?Tags[?Key==`Name` && contains(Value, `REPLACE_PREFIX_CODE-mongodb-efs`)]].FileSystemId' --output text 2>/dev/null)
-        
+    for EFS_ID in $EFS_FILESYSTEMS; do       
         echo "Deleting mount targets for $EFS_ID..."
         MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'MountTargets[].MountTargetId' --output text 2>/dev/null)
         for MT_ID in $MOUNT_TARGETS; do
