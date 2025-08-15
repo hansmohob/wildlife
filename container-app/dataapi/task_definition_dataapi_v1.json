@@ -15,7 +15,7 @@
             "name": "wildlife-dataapi",
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/dataapi:latest",
             "essential": true,
-            "readonlyRootFilesystem": false,
+            "readonlyRootFilesystem": true,
             "portMappings": [
                 {
                     "containerPort": 5000,
