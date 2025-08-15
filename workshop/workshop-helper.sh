@@ -49,6 +49,7 @@ ALB_ARN=""
 ALB_DNS=""
 TG_ARN=""
 ASG_ARN=""
+CAPACITY_PROVIDER_NAME=""
 
 # Execution Counters
 EXEC_create_ecr_repos=0
@@ -405,7 +406,7 @@ deploy_ecs_cluster() {
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
     echo "Waiting for EC2 instances to register..."
-    until [ "$(aws ecs describe-clusters --clusters wildlife-ecs --query 'clusters[0].registeredContainerInstancesCount' --output text)" -gt 0 ]; do sleep 10; done
+    until [ "$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].registeredContainerInstancesCount' --output text)" -gt 0 ]; do sleep 10; done
 
     echo -e "${GREEN}✅ ECS Cluster deployed${NC}"
 }
@@ -483,10 +484,10 @@ check_load_balancer() {
     
     # Check if target group exists with correct settings
     echo "Checking target group..."
-    TG_DETAILS=$(aws elbv2 describe-target-groups --names wildlife-targetgroup-ecs --query 'TargetGroups[0]' --output json 2>/dev/null)
+    TG_DETAILS=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0]' --output json 2>/dev/null)
     
     if [[ $? -eq 0 ]]; then
-        echo "✅ Target group 'wildlife-targetgroup-ecs' found"
+        echo "✅ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' found"
         
         # Validate target group settings
         TG_PROTOCOL=$(echo "$TG_DETAILS" | jq -r '.Protocol')
@@ -501,7 +502,7 @@ check_load_balancer() {
         [[ "$TG_TARGET_TYPE" == "ip" ]] && echo "  ✅ Target Type: IP addresses" || echo "  ❌ Target Type: $TG_TARGET_TYPE (should be ip)"
         [[ "$TG_HEALTH_PATH" == "/wildlife/health" ]] && echo "  ✅ Health Check Path: /wildlife/health" || echo "  ❌ Health Check Path: $TG_HEALTH_PATH (should be /wildlife/health)"
     else
-        echo "❌ Target group 'wildlife-targetgroup-ecs' not found"
+        echo "❌ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' not found"
         return 1
     fi
     
@@ -509,10 +510,10 @@ check_load_balancer() {
     
     # Check if load balancer exists with correct settings
     echo "Checking load balancer..."
-    ALB_DETAILS=$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0]' --output json 2>/dev/null)
+    ALB_DETAILS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0]' --output json 2>/dev/null)
     
     if [[ $? -eq 0 ]]; then
-        echo "✅ Load balancer 'wildlife-alb-ecs' found"
+        echo "✅ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' found"
         
         # Validate load balancer settings
         ALB_SCHEME=$(echo "$ALB_DETAILS" | jq -r '.Scheme')
@@ -542,7 +543,7 @@ check_load_balancer() {
         fi
         
     else
-        echo "❌ Load balancer 'wildlife-alb-ecs' not found"
+        echo "❌ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' not found"
         return 1
     fi
     
@@ -563,10 +564,10 @@ check_load_balancer() {
         [[ "$LISTENER_PORT" == "80" ]] && echo "  ✅ Port: 80" || echo "  ❌ Port: $LISTENER_PORT (should be 80)"
         [[ "$LISTENER_ACTION_TYPE" == "forward" ]] && echo "  ✅ Action: Forward to target group" || echo "  ❌ Action: $LISTENER_ACTION_TYPE (should be forward)"
         
-        if [[ "$LISTENER_TARGET_GROUP" == *"wildlife-targetgroup-ecs"* ]]; then
-            echo "  ✅ Target Group: Forwards to wildlife-targetgroup-ecs"
+        if [[ "$LISTENER_TARGET_GROUP" == *"REPLACE_PREFIX_CODE-targetgroup-ecs"* ]]; then
+            echo "  ✅ Target Group: Forwards to REPLACE_PREFIX_CODE-targetgroup-ecs"
         else
-            echo "  ❌ Target Group: $LISTENER_TARGET_GROUP (should forward to wildlife-targetgroup-ecs)"
+            echo "  ❌ Target Group: $LISTENER_TARGET_GROUP (should forward to REPLACE_PREFIX_CODE-targetgroup-ecs)"
         fi
     else
         echo "❌ Listener not found or not configured correctly"
@@ -604,7 +605,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-dataapi-service \
         --task-definition REPLACE_PREFIX_CODE-dataapi-task \
         --desired-count 2 \
-        --capacity-provider-strategy FARGATE \
+        --launch-type FARGATE \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=data-http,discoveryName=REPLACE_PREFIX_CODE-dataapi,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -623,12 +624,18 @@ create_ecs_services() {
         --no-cli-pager
 
     echo "Creating media service..."
+
+    # Dynamically detect capacity provider name (console creates auto-generated names)
+    CAPACITY_PROVIDER=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].capacityProviders[?@ != `FARGATE` && @ != `FARGATE_SPOT`] | [0]' --output text)
+    echo "Using capacity provider: $CAPACITY_PROVIDER"
+    save_variable "CAPACITY_PROVIDER_NAME" "$CAPACITY_PROVIDER"
+
     aws ecs create-service \
         --cluster REPLACE_PREFIX_CODE-ecs \
         --service-name REPLACE_PREFIX_CODE-media-service \
         --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
-        --launch-type capacityProvider=REPLACE_PREFIX_CODE-capacity-ec2,weight=1 \
+        --capacity-provider-strategy capacityProvider=$CAPACITY_PROVIDER,weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -1038,7 +1045,17 @@ cleanup_cluster() {
     
     echo "Removing capacity providers and deleting cluster..."
     aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
-    aws ecs delete-capacity-provider --capacity-provider REPLACE_PREFIX_CODE-capacity-ec2 --no-cli-pager 2>/dev/null
+
+    # Get ASG ARN from capacity provider before deleting it (for console-created clusters)
+    if [[ -n "$CAPACITY_PROVIDER_NAME" ]]; then
+        ASG_ARN=$(aws ecs describe-capacity-providers --capacity-providers "$CAPACITY_PROVIDER_NAME" --query 'capacityProviders[0].autoScalingGroupProvider.autoScalingGroupArn' --output text 2>/dev/null)
+        save_variable "ASG_ARN" "$ASG_ARN"
+        
+        echo "Deleting capacity provider: $CAPACITY_PROVIDER_NAME"
+        aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager 2>/dev/null
+        save_variable "CAPACITY_PROVIDER_NAME" ""
+    fi
+
     aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager 2>/dev/null
     
     echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
@@ -1048,13 +1065,18 @@ cleanup_asg() {
     echo -e "${RED}Deleting Auto Scaling Group...${NC}"
     
     # AWS CLI COMMANDS: Delete Auto Scaling Group and launch template
-    echo "Force deleting ASG..."
-    aws autoscaling delete-auto-scaling-group --auto-scaling-group-name REPLACE_PREFIX_CODE-asg-ecs --force-delete --no-cli-pager
-    
-    echo "Waiting for Auto Scaling Group to be deleted..."
-    while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names REPLACE_PREFIX_CODE-asg-ecs --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q REPLACE_PREFIX_CODE-asg-ecs; do
-        sleep 5
-    done
+    if [[ -n "$ASG_ARN" ]]; then
+        ASG_NAME=$(echo "$ASG_ARN" | awk -F'/' '{print $NF}')
+        echo "Force deleting ASG: $ASG_NAME"
+        aws autoscaling delete-auto-scaling-group --auto-scaling-group-name "$ASG_NAME" --force-delete --no-cli-pager
+        
+        echo "Waiting for Auto Scaling Group to be deleted..."
+        while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q "$ASG_NAME"; do
+            sleep 5
+        done
+    else
+        echo "No ASG ARN found in vars file"
+    fi
     
     echo "Deleting launch template..."
     aws ec2 delete-launch-template --launch-template-name REPLACE_PREFIX_CODE-launchtemplate-ecs --no-cli-pager
