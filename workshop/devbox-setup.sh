@@ -411,8 +411,9 @@ echo "----------------------------------------"
 cat $STATUS_FILE
 echo "----------------------------------------"
 
-# Make menu system executable
-chmod 700 /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh
+# Make workshop-helper executable and available globally
+chmod +x /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh
+ln -sf /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh /usr/local/bin/workshop-helper
 
 # Check if any steps failed
 if grep -q "\[FAILED\]" $STATUS_FILE; then
