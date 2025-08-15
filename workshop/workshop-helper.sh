@@ -146,6 +146,7 @@ declare -a MENU_ITEMS=(
     "run_capacity_scaling_test|Run Capacity Scaling Test|OPERATE"
     
     # QUICK ACTIONS
+    "check_load_balancer|Check Load Balancer Config|QUICK"
     "show_app_url|Show Application URL|QUICK"
     "full_build|Full Build (All Build Commands)|QUICK"
     "full_cleanup|Full Cleanup (All Cleanup Commands)|QUICK"
@@ -474,6 +475,106 @@ create_load_balancer() {
     save_variable "TG_ARN" "$TG_ARN"
     
     echo -e "${GREEN}✅ Load balancer created${NC}"
+}
+
+
+check_load_balancer() {
+    echo -e "${GREEN}Checking Load Balancer Configuration...${NC}"
+    
+    # Check if target group exists with correct settings
+    echo "Checking target group..."
+    TG_DETAILS=$(aws elbv2 describe-target-groups --names wildlife-targetgroup-ecs --query 'TargetGroups[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Target group 'wildlife-targetgroup-ecs' found"
+        
+        # Validate target group settings
+        TG_PROTOCOL=$(echo "$TG_DETAILS" | jq -r '.Protocol')
+        TG_PORT=$(echo "$TG_DETAILS" | jq -r '.Port')
+        TG_VPC=$(echo "$TG_DETAILS" | jq -r '.VpcId')
+        TG_TARGET_TYPE=$(echo "$TG_DETAILS" | jq -r '.TargetType')
+        TG_HEALTH_PATH=$(echo "$TG_DETAILS" | jq -r '.HealthCheckPath')
+        
+        [[ "$TG_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $TG_PROTOCOL (should be HTTP)"
+        [[ "$TG_PORT" == "5000" ]] && echo "  ✅ Port: 5000" || echo "  ❌ Port: $TG_PORT (should be 5000)"
+        [[ "$TG_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $TG_VPC (should be workshop VPC)"
+        [[ "$TG_TARGET_TYPE" == "ip" ]] && echo "  ✅ Target Type: IP addresses" || echo "  ❌ Target Type: $TG_TARGET_TYPE (should be ip)"
+        [[ "$TG_HEALTH_PATH" == "/wildlife/health" ]] && echo "  ✅ Health Check Path: /wildlife/health" || echo "  ❌ Health Check Path: $TG_HEALTH_PATH (should be /wildlife/health)"
+    else
+        echo "❌ Target group 'wildlife-targetgroup-ecs' not found"
+        return 1
+    fi
+    
+    echo ""
+    
+    # Check if load balancer exists with correct settings
+    echo "Checking load balancer..."
+    ALB_DETAILS=$(aws elbv2 describe-load-balancers --names wildlife-alb-ecs --query 'LoadBalancers[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Load balancer 'wildlife-alb-ecs' found"
+        
+        # Validate load balancer settings
+        ALB_SCHEME=$(echo "$ALB_DETAILS" | jq -r '.Scheme')
+        ALB_TYPE=$(echo "$ALB_DETAILS" | jq -r '.Type')
+        ALB_STATE=$(echo "$ALB_DETAILS" | jq -r '.State.Code')
+        ALB_VPC=$(echo "$ALB_DETAILS" | jq -r '.VpcId')
+        ALB_SUBNETS=$(echo "$ALB_DETAILS" | jq -r '.AvailabilityZones[].SubnetId' | sort | tr '\n' ' ')
+        ALB_SECURITY_GROUPS=$(echo "$ALB_DETAILS" | jq -r '.SecurityGroups[]' | tr '\n' ' ')
+        
+        [[ "$ALB_SCHEME" == "internet-facing" ]] && echo "  ✅ Scheme: Internet-facing" || echo "  ❌ Scheme: $ALB_SCHEME (should be internet-facing)"
+        [[ "$ALB_TYPE" == "application" ]] && echo "  ✅ Type: Application Load Balancer" || echo "  ❌ Type: $ALB_TYPE (should be application)"
+        [[ "$ALB_STATE" == "active" ]] && echo "  ✅ State: Active" || echo "  ⏳ State: $ALB_STATE (should be active)"
+        [[ "$ALB_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $ALB_VPC (should be workshop VPC)"
+        
+        # Check subnets (should include both public subnets)
+        if [[ "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_1"* && "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_2"* ]]; then
+            echo "  ✅ Subnets: Both public subnets selected"
+        else
+            echo "  ❌ Subnets: $ALB_SUBNETS (should include both public subnets)"
+        fi
+        
+        # Check security group
+        if [[ "$ALB_SECURITY_GROUPS" == *"REPLACE_SECURITY_GROUP_ALB"* ]]; then
+            echo "  ✅ Security Group: Correct ALB security group"
+        else
+            echo "  ❌ Security Groups: $ALB_SECURITY_GROUPS (should include ALB security group)"
+        fi
+        
+    else
+        echo "❌ Load balancer 'wildlife-alb-ecs' not found"
+        return 1
+    fi
+    
+    echo ""
+    
+    # Check listener configuration
+    echo "Checking listener..."
+    ALB_ARN=$(echo "$ALB_DETAILS" | jq -r '.LoadBalancerArn')
+    LISTENER_DETAILS=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query 'Listeners[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        LISTENER_PROTOCOL=$(echo "$LISTENER_DETAILS" | jq -r '.Protocol')
+        LISTENER_PORT=$(echo "$LISTENER_DETAILS" | jq -r '.Port')
+        LISTENER_ACTION_TYPE=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].Type')
+        LISTENER_TARGET_GROUP=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].TargetGroupArn')
+        
+        [[ "$LISTENER_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $LISTENER_PROTOCOL (should be HTTP)"
+        [[ "$LISTENER_PORT" == "80" ]] && echo "  ✅ Port: 80" || echo "  ❌ Port: $LISTENER_PORT (should be 80)"
+        [[ "$LISTENER_ACTION_TYPE" == "forward" ]] && echo "  ✅ Action: Forward to target group" || echo "  ❌ Action: $LISTENER_ACTION_TYPE (should be forward)"
+        
+        if [[ "$LISTENER_TARGET_GROUP" == *"wildlife-targetgroup-ecs"* ]]; then
+            echo "  ✅ Target Group: Forwards to wildlife-targetgroup-ecs"
+        else
+            echo "  ❌ Target Group: $LISTENER_TARGET_GROUP (should forward to wildlife-targetgroup-ecs)"
+        fi
+    else
+        echo "❌ Listener not found or not configured correctly"
+        return 1
+    fi
+    
+    echo ""
+    echo -e "${GREEN}✅ Load balancer configuration verification complete!${NC}"
 }
 
 create_ecs_services() {
