@@ -120,11 +120,8 @@ show_header() {
 }
 
 # =============================================================================
-# MENU CONFIGURATION - JUST ADD FUNCTIONS HERE!
+# MENU CONFIGURATION
 # =============================================================================
-# Format: "FUNCTION_NAME|DISPLAY_TEXT|SECTION"
-# Sections: BUILD, OPERATE, CLEANUP, QUICK, ADVANCED
-# The menu will auto-number and auto-discover these functions
 
 declare -a MENU_ITEMS=(
     # BUILD COMMANDS
@@ -478,106 +475,6 @@ create_load_balancer() {
     echo -e "${GREEN}✅ Load balancer created${NC}"
 }
 
-
-check_load_balancer() {
-    echo -e "${GREEN}Checking Load Balancer Configuration...${NC}"
-    
-    # Check if target group exists with correct settings
-    echo "Checking target group..."
-    TG_DETAILS=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0]' --output json 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
-        echo "✅ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' found"
-        
-        # Validate target group settings
-        TG_PROTOCOL=$(echo "$TG_DETAILS" | jq -r '.Protocol')
-        TG_PORT=$(echo "$TG_DETAILS" | jq -r '.Port')
-        TG_VPC=$(echo "$TG_DETAILS" | jq -r '.VpcId')
-        TG_TARGET_TYPE=$(echo "$TG_DETAILS" | jq -r '.TargetType')
-        TG_HEALTH_PATH=$(echo "$TG_DETAILS" | jq -r '.HealthCheckPath')
-        
-        [[ "$TG_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $TG_PROTOCOL (should be HTTP)"
-        [[ "$TG_PORT" == "5000" ]] && echo "  ✅ Port: 5000" || echo "  ❌ Port: $TG_PORT (should be 5000)"
-        [[ "$TG_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $TG_VPC (should be workshop VPC)"
-        [[ "$TG_TARGET_TYPE" == "ip" ]] && echo "  ✅ Target Type: IP addresses" || echo "  ❌ Target Type: $TG_TARGET_TYPE (should be ip)"
-        [[ "$TG_HEALTH_PATH" == "/wildlife/health" ]] && echo "  ✅ Health Check Path: /wildlife/health" || echo "  ❌ Health Check Path: $TG_HEALTH_PATH (should be /wildlife/health)"
-    else
-        echo "❌ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' not found"
-        return 1
-    fi
-    
-    echo ""
-    
-    # Check if load balancer exists with correct settings
-    echo "Checking load balancer..."
-    ALB_DETAILS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0]' --output json 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
-        echo "✅ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' found"
-        
-        # Validate load balancer settings
-        ALB_SCHEME=$(echo "$ALB_DETAILS" | jq -r '.Scheme')
-        ALB_TYPE=$(echo "$ALB_DETAILS" | jq -r '.Type')
-        ALB_STATE=$(echo "$ALB_DETAILS" | jq -r '.State.Code')
-        ALB_VPC=$(echo "$ALB_DETAILS" | jq -r '.VpcId')
-        ALB_SUBNETS=$(echo "$ALB_DETAILS" | jq -r '.AvailabilityZones[].SubnetId' | sort | tr '\n' ' ')
-        ALB_SECURITY_GROUPS=$(echo "$ALB_DETAILS" | jq -r '.SecurityGroups[]' | tr '\n' ' ')
-        
-        [[ "$ALB_SCHEME" == "internet-facing" ]] && echo "  ✅ Scheme: Internet-facing" || echo "  ❌ Scheme: $ALB_SCHEME (should be internet-facing)"
-        [[ "$ALB_TYPE" == "application" ]] && echo "  ✅ Type: Application Load Balancer" || echo "  ❌ Type: $ALB_TYPE (should be application)"
-        [[ "$ALB_STATE" == "active" ]] && echo "  ✅ State: Active" || echo "  ⏳ State: $ALB_STATE (should be active)"
-        [[ "$ALB_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $ALB_VPC (should be workshop VPC)"
-        
-        # Check subnets (should include both public subnets)
-        if [[ "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_1"* && "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_2"* ]]; then
-            echo "  ✅ Subnets: Both public subnets selected"
-        else
-            echo "  ❌ Subnets: $ALB_SUBNETS (should include both public subnets)"
-        fi
-        
-        # Check security group
-        if [[ "$ALB_SECURITY_GROUPS" == *"REPLACE_SECURITY_GROUP_ALB"* ]]; then
-            echo "  ✅ Security Group: Correct ALB security group"
-        else
-            echo "  ❌ Security Groups: $ALB_SECURITY_GROUPS (should include ALB security group)"
-        fi
-        
-    else
-        echo "❌ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' not found"
-        return 1
-    fi
-    
-    echo ""
-    
-    # Check listener configuration
-    echo "Checking listener..."
-    ALB_ARN=$(echo "$ALB_DETAILS" | jq -r '.LoadBalancerArn')
-    LISTENER_DETAILS=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query 'Listeners[0]' --output json 2>/dev/null)
-    
-    if [[ $? -eq 0 ]]; then
-        LISTENER_PROTOCOL=$(echo "$LISTENER_DETAILS" | jq -r '.Protocol')
-        LISTENER_PORT=$(echo "$LISTENER_DETAILS" | jq -r '.Port')
-        LISTENER_ACTION_TYPE=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].Type')
-        LISTENER_TARGET_GROUP=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].TargetGroupArn')
-        
-        [[ "$LISTENER_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $LISTENER_PROTOCOL (should be HTTP)"
-        [[ "$LISTENER_PORT" == "80" ]] && echo "  ✅ Port: 80" || echo "  ❌ Port: $LISTENER_PORT (should be 80)"
-        [[ "$LISTENER_ACTION_TYPE" == "forward" ]] && echo "  ✅ Action: Forward to target group" || echo "  ❌ Action: $LISTENER_ACTION_TYPE (should be forward)"
-        
-        if [[ "$LISTENER_TARGET_GROUP" == *"REPLACE_PREFIX_CODE-targetgroup-ecs"* ]]; then
-            echo "  ✅ Target Group: Forwards to REPLACE_PREFIX_CODE-targetgroup-ecs"
-        else
-            echo "  ❌ Target Group: $LISTENER_TARGET_GROUP (should forward to REPLACE_PREFIX_CODE-targetgroup-ecs)"
-        fi
-    else
-        echo "❌ Listener not found or not configured correctly"
-        return 1
-    fi
-    
-    echo ""
-    echo -e "${GREEN}✅ Load balancer configuration verification complete!${NC}"
-}
-
 create_ecs_services() {
     echo -e "${GREEN}Creating ECS Services...${NC}"
     
@@ -794,6 +691,10 @@ create_efs_storage() {
     echo -e "${CYAN}EFS ID: $EFS_ID${NC}"
 }
 
+# =============================================================================
+# OPERATE COMMANDS
+# =============================================================================
+
 configure_service_scaling() {
     echo -e "${GREEN}Configuring Frontend Service Auto Scaling...${NC}"
     
@@ -903,6 +804,109 @@ run_capacity_scaling_test() {
     
     # Run k6 test with ALB URL - this should trigger DataAPI scaling and then capacity scaling
     ALB_URL="http://$ALB_DNS" k6 run /home/ec2-user/workspace/my-workspace/workshop/loadtest-capacity-scaling.js
+}
+
+# =============================================================================
+# QUICKACTIONS COMMANDS
+# =============================================================================
+
+check_load_balancer() {
+    echo -e "${GREEN}Checking Load Balancer Configuration...${NC}"
+    
+    # Check if target group exists with correct settings
+    echo "Checking target group..."
+    TG_DETAILS=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' found"
+        
+        # Validate target group settings
+        TG_PROTOCOL=$(echo "$TG_DETAILS" | jq -r '.Protocol')
+        TG_PORT=$(echo "$TG_DETAILS" | jq -r '.Port')
+        TG_VPC=$(echo "$TG_DETAILS" | jq -r '.VpcId')
+        TG_TARGET_TYPE=$(echo "$TG_DETAILS" | jq -r '.TargetType')
+        TG_HEALTH_PATH=$(echo "$TG_DETAILS" | jq -r '.HealthCheckPath')
+        
+        [[ "$TG_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $TG_PROTOCOL (should be HTTP)"
+        [[ "$TG_PORT" == "5000" ]] && echo "  ✅ Port: 5000" || echo "  ❌ Port: $TG_PORT (should be 5000)"
+        [[ "$TG_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $TG_VPC (should be workshop VPC)"
+        [[ "$TG_TARGET_TYPE" == "ip" ]] && echo "  ✅ Target Type: IP addresses" || echo "  ❌ Target Type: $TG_TARGET_TYPE (should be ip)"
+        [[ "$TG_HEALTH_PATH" == "/wildlife/health" ]] && echo "  ✅ Health Check Path: /wildlife/health" || echo "  ❌ Health Check Path: $TG_HEALTH_PATH (should be /wildlife/health)"
+    else
+        echo "❌ Target group 'REPLACE_PREFIX_CODE-targetgroup-ecs' not found"
+        return 1
+    fi
+    
+    echo ""
+    
+    # Check if load balancer exists with correct settings
+    echo "Checking load balancer..."
+    ALB_DETAILS=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' found"
+        
+        # Validate load balancer settings
+        ALB_SCHEME=$(echo "$ALB_DETAILS" | jq -r '.Scheme')
+        ALB_TYPE=$(echo "$ALB_DETAILS" | jq -r '.Type')
+        ALB_STATE=$(echo "$ALB_DETAILS" | jq -r '.State.Code')
+        ALB_VPC=$(echo "$ALB_DETAILS" | jq -r '.VpcId')
+        ALB_SUBNETS=$(echo "$ALB_DETAILS" | jq -r '.AvailabilityZones[].SubnetId' | sort | tr '\n' ' ')
+        ALB_SECURITY_GROUPS=$(echo "$ALB_DETAILS" | jq -r '.SecurityGroups[]' | tr '\n' ' ')
+        
+        [[ "$ALB_SCHEME" == "internet-facing" ]] && echo "  ✅ Scheme: Internet-facing" || echo "  ❌ Scheme: $ALB_SCHEME (should be internet-facing)"
+        [[ "$ALB_TYPE" == "application" ]] && echo "  ✅ Type: Application Load Balancer" || echo "  ❌ Type: $ALB_TYPE (should be application)"
+        [[ "$ALB_STATE" == "active" ]] && echo "  ✅ State: Active" || echo "  ⏳ State: $ALB_STATE (should be active)"
+        [[ "$ALB_VPC" == "REPLACE_VPC_ID" ]] && echo "  ✅ VPC: Correct workshop VPC" || echo "  ❌ VPC: $ALB_VPC (should be workshop VPC)"
+        
+        # Check subnets (should include both public subnets)
+        if [[ "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_1"* && "$ALB_SUBNETS" == *"REPLACE_PUBLIC_SUBNET_2"* ]]; then
+            echo "  ✅ Subnets: Both public subnets selected"
+        else
+            echo "  ❌ Subnets: $ALB_SUBNETS (should include both public subnets)"
+        fi
+        
+        # Check security group
+        if [[ "$ALB_SECURITY_GROUPS" == *"REPLACE_SECURITY_GROUP_ALB"* ]]; then
+            echo "  ✅ Security Group: Correct ALB security group"
+        else
+            echo "  ❌ Security Groups: $ALB_SECURITY_GROUPS (should include ALB security group)"
+        fi
+        
+    else
+        echo "❌ Load balancer 'REPLACE_PREFIX_CODE-alb-ecs' not found"
+        return 1
+    fi
+    
+    echo ""
+    
+    # Check listener configuration
+    echo "Checking listener..."
+    ALB_ARN=$(echo "$ALB_DETAILS" | jq -r '.LoadBalancerArn')
+    LISTENER_DETAILS=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query 'Listeners[0]' --output json 2>/dev/null)
+    
+    if [[ $? -eq 0 ]]; then
+        LISTENER_PROTOCOL=$(echo "$LISTENER_DETAILS" | jq -r '.Protocol')
+        LISTENER_PORT=$(echo "$LISTENER_DETAILS" | jq -r '.Port')
+        LISTENER_ACTION_TYPE=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].Type')
+        LISTENER_TARGET_GROUP=$(echo "$LISTENER_DETAILS" | jq -r '.DefaultActions[0].TargetGroupArn')
+        
+        [[ "$LISTENER_PROTOCOL" == "HTTP" ]] && echo "  ✅ Protocol: HTTP" || echo "  ❌ Protocol: $LISTENER_PROTOCOL (should be HTTP)"
+        [[ "$LISTENER_PORT" == "80" ]] && echo "  ✅ Port: 80" || echo "  ❌ Port: $LISTENER_PORT (should be 80)"
+        [[ "$LISTENER_ACTION_TYPE" == "forward" ]] && echo "  ✅ Action: Forward to target group" || echo "  ❌ Action: $LISTENER_ACTION_TYPE (should be forward)"
+        
+        if [[ "$LISTENER_TARGET_GROUP" == *"REPLACE_PREFIX_CODE-targetgroup-ecs"* ]]; then
+            echo "  ✅ Target Group: Forwards to REPLACE_PREFIX_CODE-targetgroup-ecs"
+        else
+            echo "  ❌ Target Group: $LISTENER_TARGET_GROUP (should forward to REPLACE_PREFIX_CODE-targetgroup-ecs)"
+        fi
+    else
+        echo "❌ Listener not found or not configured correctly"
+        return 1
+    fi
+    
+    echo ""
+    echo -e "${GREEN}✅ Load balancer configuration verification complete!${NC}"
 }
 
 check_status() {
