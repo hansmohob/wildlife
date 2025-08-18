@@ -152,8 +152,8 @@ declare -a MENU_ITEMS=(
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
     "cleanup_load_balancer|Delete Load Balancer|CLEANUP"
-    "cleanup_cluster|Delete ECS Cluster|CLEANUP"
     "cleanup_asg|Delete Auto Scaling Group|CLEANUP"
+    "cleanup_cluster|Delete ECS Cluster|CLEANUP"
     "cleanup_task_definitions|Delete Task Definitions|CLEANUP"
     "cleanup_vpc_endpoints|Delete VPC Endpoints|CLEANUP"
     "cleanup_efs|Delete EFS Storage|CLEANUP"
