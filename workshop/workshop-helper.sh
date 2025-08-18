@@ -585,6 +585,17 @@ create_ecs_services() {
     done
 
     echo ""
+    echo "Updating ALB security group to allow direct access..."
+    
+    # AWS CLI COMMANDS: Add HTTP rule to ALB security group for direct access
+    aws ec2 authorize-security-group-ingress \
+        --group-id REPLACE_SECURITY_GROUP_ALB \
+        --protocol tcp \
+        --port 80 \
+        --cidr 0.0.0.0/0 \
+        --no-cli-pager 2>/dev/null
+    
+    echo ""
     echo -e "${GREEN}🎉 Congratulations! Your Wildlife application is up! Connect at: http://$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].DNSName' --output text)/REPLACE_PREFIX_CODE${NC}"
 }
 
