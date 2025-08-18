@@ -79,7 +79,6 @@ EXEC_show_app_url=0
 EXEC_run_service_scaling_test=0
 EXEC_run_capacity_scaling_test=0
 EXEC_full_cleanup=0
-EXEC_deploy_adot=0
 EOF
     fi
 }
@@ -89,7 +88,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling configure_capacity_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test run_capacity_scaling_test full_cleanup deploy_adot; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling configure_capacity_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test run_capacity_scaling_test full_cleanup; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -159,9 +158,6 @@ declare -a MENU_ITEMS=(
     "cleanup_efs|Delete EFS Storage|CLEANUP"
     "cleanup_ecr|Delete ECR Repositories|CLEANUP"
     "cleanup_docker|Clean Docker Images|CLEANUP"
-
-    # ADVANCED FEATURES
-    "deploy_adot|Deploy ADOT (OpenTelemetry)|ADVANCED"
 )
 
 show_menu() {
