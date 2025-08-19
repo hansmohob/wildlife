@@ -76,7 +76,7 @@
         {
             "name": "mongodb-data",
             "efsVolumeConfiguration": {
-                "fileSystemId": "fs-06e9fd6a5b20b70c6",
+                "fileSystemId": "REPLACE_EFS_ID",
                 "rootDirectory": "/"
             }
         }
