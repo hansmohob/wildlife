@@ -404,6 +404,16 @@ tar -xzf k6-v${K6_VERSION}-linux-${INSTANCE_ARCHITECTURE}.tar.gz -C /tmp
 install -o root -g root -m 0755 /tmp/k6-v${K6_VERSION}-linux-${INSTANCE_ARCHITECTURE}/k6 /usr/local/bin/k6
 ' "Failed to install k6"
 
+# Install Session Manager plugin for ECS Exec
+install_component "session_manager_plugin_installed" '
+ARCH=$(detect_architecture)
+if [ "$ARCH" = "aarch64" ]; then
+    dnf install -y https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_arm64/session-manager-plugin.rpm
+else
+    dnf install -y https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm
+fi
+' "Failed to install Session Manager plugin"
+
 # Print summary of installation
 echo "INFO: Setup script completed at $(date)"
 echo "INFO: Installation summary:"
