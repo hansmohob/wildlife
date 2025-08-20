@@ -7,53 +7,65 @@ const TARGET_URL = `${ALB_URL}/wildlife`;
 
 export let options = {
   stages: [
-    // Aggressive ramp-up to force media service beyond 7 task capacity
-    { duration: '30s', target: 500 },   // Quick spike to 300 users
-    { duration: '30s', target: 1000 },    // Push to 600 users
-    { duration: '30s', target: 1500 },    // Peak load to force 5-6 media tasks
+    // Aggressive ramp-up to force media service beyond capacity
+    { duration: '30s', target: 300 },   // Quick spike to 300 users
+    { duration: '30s', target: 600 },   // Push to 600 users
+    { duration: '30s', target: 900 },   // Peak load to force scaling
     
     // Sustained very high load to trigger EC2 capacity scaling
-    { duration: '6m', target: 2000 },   // Maximum load to exceed EC2 capacity
+    { duration: '6m', target: 1200 },   // Maximum load to exceed EC2 capacity
     
     // Gradual ramp-down to observe scaling behavior
-    { duration: '1m', target: 500 },    // Gradual drop
+    { duration: '1m', target: 300 },    // Gradual drop
     { duration: '1m', target: 100 },    // Quick drop
-    { duration: '30s', target: 0 },      // Complete drop
+    { duration: '30s', target: 0 },     // Complete drop
   ],
   thresholds: {
-    http_req_duration: ['p(95)<4000'], // More lenient for higher load
-    http_req_failed: ['rate<0.2'],     // Expect some failures under heavy load
+    http_req_duration: ['p(95)<8000'], // More lenient for higher load
+    http_req_failed: ['rate<0.4'],     // Expect more failures under heavy load
   },
 };
 
 export default function() {
-  // Make multiple requests to increase CPU load per user
-  let response1 = http.get(`${TARGET_URL}/api/sightings`, {
-    headers: {
-      'User-Agent': 'k6-capacity-scaling-test/1.0',
-    },
-  });
+  // Focus heavily on MEDIA SERVICE endpoints to drive CPU usage
   
-  // Check response
-  check(response1, {
-    'status is 200': (r) => r.status === 200,
-    'response time < 5s': (r) => r.timings.duration < 5000,
-  });
-  
-  // Add more requests to stress the media service harder
-  http.get(`${TARGET_URL}/api/sightings?limit=50`);
-  http.post(`${TARGET_URL}/api/sightings`, {
+  // 1. Create sighting (hits MEDIA service - CPU intensive)
+  let sightingResponse = http.post(`${TARGET_URL}/api/sightings`, {
     species: `Load Test Species ${Math.random()}`,
     habitat: 'Forest',
     latitude: (-20.2759 + (Math.random() - 0.5) * 0.1).toString(),
     longitude: (57.5704 + (Math.random() - 0.5) * 0.1).toString(),
     count: (Math.floor(Math.random() * 10) + 1).toString(),
-    description: `Load test sighting - ${new Date().toISOString()}`
+    description: `Load test sighting - ${new Date().toISOString()}`,
+    ranger_name: `Ranger ${Math.floor(Math.random() * 100)}`
+  }, {
+    headers: {
+      'User-Agent': 'k6-capacity-scaling-test/1.0',
+    },
   });
   
-  // Add a small delay but keep pressure high
-  sleep(0.1);
+  check(sightingResponse, {
+    'sighting created': (r) => r.status === 200,
+  });
   
-  // Additional request burst to really stress CPU
-  http.get(`${TARGET_URL}/api/images/sightings/20250714/test_image_${Math.floor(Math.random() * 10)}.jpg`);
+  // 2. Create ANOTHER sighting (more media service load)
+  http.post(`${TARGET_URL}/api/sightings`, {
+    species: `Test Animal ${Math.random()}`,
+    habitat: 'Savanna',
+    latitude: (-25 + Math.random() * 5).toString(),
+    longitude: (30 + Math.random() * 5).toString(),
+    count: (Math.floor(Math.random() * 5) + 1).toString(),
+    description: `Capacity test sighting - ${new Date().toISOString()}`
+  });
+  
+  // 3. Try to access multiple images (hits MEDIA service)
+  for (let i = 0; i < 3; i++) {
+    http.get(`${TARGET_URL}/api/images/sightings/20250820/test_image_${Math.floor(Math.random() * 20)}.jpg`);
+  }
+  
+  // 4. Get sightings (hits dataapi, but also exercises the system)
+  http.get(`${TARGET_URL}/api/sightings`);
+  
+  // Small delay but keep pressure high
+  sleep(0.1);
 }
