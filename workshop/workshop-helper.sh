@@ -68,7 +68,6 @@ EXEC_configure_capacity_scaling=0
 EXEC_cleanup_services=0
 EXEC_cleanup_load_balancer=0
 EXEC_cleanup_cluster=0
-EXEC_cleanup_asg=0
 EXEC_cleanup_task_definitions=0
 EXEC_cleanup_vpc_endpoints=0
 EXEC_cleanup_efs=0
@@ -88,7 +87,7 @@ load_variables() {
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
-    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling configure_capacity_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_asg cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test run_capacity_scaling_test full_cleanup; do
+    for func in create_ecr_repos build_images push_images setup_vpc_endpoints deploy_ecs_cluster register_task_definitions create_load_balancer create_ecs_services fix_image_upload fix_gps_data create_efs_storage configure_service_scaling configure_capacity_scaling cleanup_services cleanup_load_balancer cleanup_cluster cleanup_task_definitions cleanup_vpc_endpoints cleanup_efs cleanup_ecr cleanup_docker full_build show_app_url run_service_scaling_test run_capacity_scaling_test full_cleanup; do
         local exec_var="EXEC_${func}"
         EXECUTION_COUNT["$func"]=${!exec_var:-0}
     done
@@ -151,7 +150,6 @@ declare -a MENU_ITEMS=(
     # CLEANUP COMMANDS
     "cleanup_services|Delete ECS Services|CLEANUP"
     "cleanup_load_balancer|Delete Load Balancer|CLEANUP"
-    "cleanup_asg|Delete Auto Scaling Group|CLEANUP"
     "cleanup_cluster|Delete ECS Cluster|CLEANUP"
     "cleanup_task_definitions|Delete Task Definitions|CLEANUP"
     "cleanup_vpc_endpoints|Delete VPC Endpoints|CLEANUP"
@@ -392,7 +390,7 @@ deploy_ecs_cluster() {
         --no-cli-pager
 
     echo "Waiting for cluster attachments to complete..."
-    until ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -q "UPDATE_IN_PROGRESS"; do sleep 5; done
+    until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -E "(UPDATE_COMPLETE|None)" -q; do sleep 5; done
 
     echo "Configuring cluster capacity providers..."
     aws ecs put-cluster-capacity-providers \
@@ -400,6 +398,9 @@ deploy_ecs_cluster() {
         --capacity-providers FARGATE FARGATE_SPOT REPLACE_PREFIX_CODE-capacity-ec2 \
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
+
+    echo "Waiting for capacity provider configuration to complete..."
+    until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -E "(UPDATE_COMPLETE|None)" -q; do sleep 5; done
     save_variable "CAPACITY_PROVIDER_NAME" "REPLACE_PREFIX_CODE-capacity-ec2"
 
     echo "Waiting for EC2 instances to register..."
@@ -467,7 +468,6 @@ create_load_balancer() {
 
     echo "Creating listener..."
     aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
-    
     save_variable "ALB_ARN" "$ALB_ARN"
     save_variable "TG_ARN" "$TG_ARN"
     
@@ -1046,14 +1046,13 @@ cleanup_load_balancer() {
     echo -e "${GREEN}✅ Load Balancer deleted${NC}"
 }
 
-cleanup_asg() {
-    echo -e "${RED}Deleting Auto Scaling Group...${NC}"
+cleanup_cluster() {
+    echo -e "${RED}Deleting ECS Cluster...${NC}"
     
-    # AWS CLI COMMANDS: Delete Auto Scaling Group and launch template
     if [[ -n "$ASG_ARN" ]]; then
         ASG_NAME=$(echo "$ASG_ARN" | awk -F'/' '{print $NF}')
         LAUNCH_TEMPLATE_NAME=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateName' --output text 2>/dev/null)
-
+        
         echo "Force deleting ASG: $ASG_NAME"
         aws autoscaling delete-auto-scaling-group --auto-scaling-group-name "$ASG_NAME" --force-delete --no-cli-pager
         
@@ -1066,40 +1065,32 @@ cleanup_asg() {
             echo "Deleting launch template..."
             aws ec2 delete-launch-template --launch-template-name "$LAUNCH_TEMPLATE_NAME" --no-cli-pager
         fi
+        save_variable "ASG_ARN" ""
     else
         echo "No ASG ARN found in vars file"
     fi
     
-    # Clear ASG variable
-    save_variable "ASG_ARN" ""
-    
-    echo -e "${GREEN}✅ Auto Scaling Group deleted${NC}"
-}
-
-cleanup_cluster() {
-    echo -e "${RED}Deleting ECS Cluster...${NC}"
-    
-    # AWS CLI COMMANDS: Delete ECS cluster, capacity providers, and container instances
     if ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
         echo "Cluster not found, skipping deletion"
-        echo -e "${GREEN}✅ ECS Cluster deleted (was already gone)${NC}"
+        echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
         return 0
     fi
     
     echo "Removing capacity providers and deleting cluster..."
     aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager
 
-    # Get ASG ARN from capacity provider before deleting it (for console-created clusters)
-    if [[ -n "$CAPACITY_PROVIDER_NAME" ]]; then
-        ASG_ARN=$(aws ecs describe-capacity-providers --capacity-providers "$CAPACITY_PROVIDER_NAME" --query 'capacityProviders[0].autoScalingGroupProvider.autoScalingGroupArn' --output text 2>/dev/null)
-        save_variable "ASG_ARN" "$ASG_ARN"
-        
+    # Delete capacity provider if it exists
+    if [[ -n "$CAPACITY_PROVIDER_NAME" && "$CAPACITY_PROVIDER_NAME" != "None" ]]; then
         echo "Deleting capacity provider: $CAPACITY_PROVIDER_NAME"
         aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager
         save_variable "CAPACITY_PROVIDER_NAME" ""
     fi
 
-    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager 2>/dev/null
+    echo "Waiting 30 seconds for attachments cleanup..."
+    sleep 30
+
+    echo "Deleting cluster..."
+    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
     
     echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
 }
@@ -1152,8 +1143,6 @@ cleanup_efs() {
     # Reset task definition back to placeholders
     echo "Resetting task definition placeholders..."
     sed -i 's/"fileSystemId": "fs-[^"]*"/"fileSystemId": "REPLACE_EFS_ID"/g' /home/ec2-user/workspace/my-workspace/container-app/datadb/task_definition_datadb_v2.json
-
-    # Clear EFS_ID variable
     save_variable "EFS_ID" ""
     
     echo -e "${GREEN}✅ EFS Storage deleted${NC}"
@@ -1202,7 +1191,6 @@ full_cleanup() {
         echo -e "${RED}🔥 Starting complete infrastructure cleanup...${NC}"
         cleanup_services && \
         cleanup_load_balancer && \
-        cleanup_asg && \
         cleanup_cluster && \
         cleanup_task_definitions && \
         cleanup_vpc_endpoints && \
