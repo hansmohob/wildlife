@@ -398,6 +398,8 @@ deploy_ecs_cluster() {
         --capacity-providers FARGATE FARGATE_SPOT REPLACE_PREFIX_CODE-capacity-ec2 \
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
+    save_variable "CAPACITY_PROVIDER_NAME" "wildlife-capacity-ec2"
+
     echo "Waiting for EC2 instances to register..."
     until [ "$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].registeredContainerInstancesCount' --output text)" -gt 0 ]; do sleep 10; done
 
@@ -464,7 +466,6 @@ create_load_balancer() {
     echo "Creating listener..."
     aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
     
-    # Save load balancer variables persistently
     save_variable "ALB_ARN" "$ALB_ARN"
     save_variable "TG_ARN" "$TG_ARN"
     
@@ -1036,7 +1037,6 @@ cleanup_load_balancer() {
         aws elbv2 delete-target-group --target-group-arn $TG_ARN --no-cli-pager
     fi
     
-    # Clear load balancer variables
     save_variable "ALB_ARN" ""
     save_variable "ALB_DNS" ""
     save_variable "TG_ARN" ""
@@ -1200,8 +1200,8 @@ full_cleanup() {
         echo -e "${RED}🔥 Starting complete infrastructure cleanup...${NC}"
         cleanup_services && \
         cleanup_load_balancer && \
-        cleanup_cluster && \
         cleanup_asg && \
+        cleanup_cluster && \
         cleanup_task_definitions && \
         cleanup_vpc_endpoints && \
         cleanup_efs && \
