@@ -90,7 +90,8 @@ def report_sighting():
             lambda: requests.post(
                 'http://wildlife-media.wildlife:5000/wildlife/api/sightings',
                 data=request.form,
-                files=files
+                files=files,
+                timeout=30
             ),
             'Media Service (wildlife-media)'
         )
@@ -104,7 +105,7 @@ def get_sightings():
     try:
         logger.info("Getting sightings")
         response = connect_with_retry(
-            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings'),
+            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings', timeout=10),
             'DataAPI Service (wildlife-dataapi)'
         )
         return response.content, response.status_code, response.headers.items()
@@ -117,7 +118,7 @@ def get_image(image_key):
     try:
         logger.info(f"Getting image: {image_key}")
         response = connect_with_retry(
-            lambda: requests.get(f'http://wildlife-media.wildlife:5000/wildlife/api/images/{image_key}'),
+            lambda: requests.get(f'http://wildlife-media.wildlife:5000/wildlife/api/images/{image_key}', timeout=30),
             'Media Service (wildlife-media)'
         )
         return response.content, response.status_code, response.headers.items()
@@ -131,13 +132,13 @@ def proxy_gps():
         if request.method == 'GET':
             logger.info("Getting GPS data")
             response = connect_with_retry(
-                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps'),
+                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', timeout=10),
                 'Alerts Service (wildlife-alerts)'
             )
         else:
             logger.info("Posting GPS data")
             response = connect_with_retry(
-                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json),
+                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json, timeout=10),
                 'Alerts Service (wildlife-alerts)'
             )
         return response.content, response.status_code, response.headers.items()

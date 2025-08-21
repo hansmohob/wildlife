@@ -784,7 +784,7 @@ configure_capacity_scaling() {
         --policy-name REPLACE_PREFIX_CODE-media-cpu-scaling \
         --policy-type TargetTrackingScaling \
         --target-tracking-scaling-policy-configuration '{
-            "TargetValue": 50.0,
+            "TargetValue": 30.0,
             "PredefinedMetricSpecification": {
                 "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
             }
