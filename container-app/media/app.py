@@ -71,6 +71,7 @@ db = mongo_client.wildlife_db
 # Constants
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
 
+@xray_recorder.capture('s3_image_upload')
 def handle_image_upload(file):
     """Handle image upload to S3"""
     if not file.filename or file.filename == '':
@@ -124,6 +125,7 @@ def health_check():
     }), 200
 
 @app.route('/wildlife/api/images/<path:image_key>')
+@xray_recorder.capture('s3_image_retrieval')
 def get_image(image_key):
     # Validate image key
     if not image_key or '..' in image_key:
