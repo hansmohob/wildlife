@@ -373,6 +373,8 @@ deploy_ecs_cluster() {
 
     echo "Waiting for cluster to be active..."
     until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text | grep -q ACTIVE; do sleep 5; done
+    echo "Waiting for cluster attachments to complete..."
+    until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -q "UPDATE_COMPLETE"; do sleep 5; done
     sleep 5
 
     echo "Creating capacity provider..."
@@ -398,7 +400,7 @@ deploy_ecs_cluster() {
         --capacity-providers FARGATE FARGATE_SPOT REPLACE_PREFIX_CODE-capacity-ec2 \
         --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
         --no-cli-pager
-    save_variable "CAPACITY_PROVIDER_NAME" "wildlife-capacity-ec2"
+    save_variable "CAPACITY_PROVIDER_NAME" "REPLACE_PREFIX_CODE-capacity-ec2"
 
     echo "Waiting for EC2 instances to register..."
     until [ "$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].registeredContainerInstancesCount' --output text)" -gt 0 ]; do sleep 10; done
@@ -1044,34 +1046,6 @@ cleanup_load_balancer() {
     echo -e "${GREEN}✅ Load Balancer deleted${NC}"
 }
 
-cleanup_cluster() {
-    echo -e "${RED}Deleting ECS Cluster...${NC}"
-    
-    # AWS CLI COMMANDS: Delete ECS cluster, capacity providers, and container instances
-    if ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
-        echo "Cluster not found, skipping deletion"
-        echo -e "${GREEN}✅ ECS Cluster deleted (was already gone)${NC}"
-        return 0
-    fi
-    
-    echo "Removing capacity providers and deleting cluster..."
-    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
-
-    # Get ASG ARN from capacity provider before deleting it (for console-created clusters)
-    if [[ -n "$CAPACITY_PROVIDER_NAME" ]]; then
-        ASG_ARN=$(aws ecs describe-capacity-providers --capacity-providers "$CAPACITY_PROVIDER_NAME" --query 'capacityProviders[0].autoScalingGroupProvider.autoScalingGroupArn' --output text 2>/dev/null)
-        save_variable "ASG_ARN" "$ASG_ARN"
-        
-        echo "Deleting capacity provider: $CAPACITY_PROVIDER_NAME"
-        aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager 2>/dev/null
-        save_variable "CAPACITY_PROVIDER_NAME" ""
-    fi
-
-    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager 2>/dev/null
-    
-    echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
-}
-
 cleanup_asg() {
     echo -e "${RED}Deleting Auto Scaling Group...${NC}"
     
@@ -1100,6 +1074,34 @@ cleanup_asg() {
     save_variable "ASG_ARN" ""
     
     echo -e "${GREEN}✅ Auto Scaling Group deleted${NC}"
+}
+
+cleanup_cluster() {
+    echo -e "${RED}Deleting ECS Cluster...${NC}"
+    
+    # AWS CLI COMMANDS: Delete ECS cluster, capacity providers, and container instances
+    if ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+        echo "Cluster not found, skipping deletion"
+        echo -e "${GREEN}✅ ECS Cluster deleted (was already gone)${NC}"
+        return 0
+    fi
+    
+    echo "Removing capacity providers and deleting cluster..."
+    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
+
+    # Get ASG ARN from capacity provider before deleting it (for console-created clusters)
+    if [[ -n "$CAPACITY_PROVIDER_NAME" ]]; then
+        ASG_ARN=$(aws ecs describe-capacity-providers --capacity-providers "$CAPACITY_PROVIDER_NAME" --query 'capacityProviders[0].autoScalingGroupProvider.autoScalingGroupArn' --output text 2>/dev/null)
+        save_variable "ASG_ARN" "$ASG_ARN"
+        
+        echo "Deleting capacity provider: $CAPACITY_PROVIDER_NAME"
+        aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager 2>/dev/null
+        save_variable "CAPACITY_PROVIDER_NAME" ""
+    fi
+
+    aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager 2>/dev/null
+    
+    echo -e "${GREEN}✅ ECS Cluster deleted${NC}"
 }
 
 cleanup_task_definitions() {
