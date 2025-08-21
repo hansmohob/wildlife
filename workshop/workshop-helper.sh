@@ -373,9 +373,6 @@ deploy_ecs_cluster() {
 
     echo "Waiting for cluster to be active..."
     until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].status' --output text | grep -q ACTIVE; do sleep 5; done
-    echo "Waiting for cluster attachments to complete..."
-    until aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -q "UPDATE_COMPLETE"; do sleep 5; done
-    sleep 5
 
     echo "Creating capacity provider..."
     aws ecs create-capacity-provider \
@@ -393,6 +390,9 @@ deploy_ecs_cluster() {
             \"managedDraining\": \"ENABLED\"
         }" \
         --no-cli-pager
+
+    echo "Waiting for cluster attachments to complete..."
+    until ! aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].attachmentsStatus' --output text | grep -q "UPDATE_IN_PROGRESS"; do sleep 5; done
 
     echo "Configuring cluster capacity providers..."
     aws ecs put-cluster-capacity-providers \
@@ -1087,7 +1087,7 @@ cleanup_cluster() {
     fi
     
     echo "Removing capacity providers and deleting cluster..."
-    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager 2>/dev/null
+    aws ecs put-cluster-capacity-providers --cluster REPLACE_PREFIX_CODE-ecs --capacity-providers --default-capacity-provider-strategy --no-cli-pager
 
     # Get ASG ARN from capacity provider before deleting it (for console-created clusters)
     if [[ -n "$CAPACITY_PROVIDER_NAME" ]]; then
@@ -1095,7 +1095,7 @@ cleanup_cluster() {
         save_variable "ASG_ARN" "$ASG_ARN"
         
         echo "Deleting capacity provider: $CAPACITY_PROVIDER_NAME"
-        aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager 2>/dev/null
+        aws ecs delete-capacity-provider --capacity-provider "$CAPACITY_PROVIDER_NAME" --no-cli-pager
         save_variable "CAPACITY_PROVIDER_NAME" ""
     fi
 
