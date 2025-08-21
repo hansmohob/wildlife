@@ -328,7 +328,7 @@ deploy_ecs_cluster() {
     echo -e "${GREEN}Deploying ECS Cluster...${NC}"
     
     # AWS CLI COMMANDS: Create ECS cluster with EC2 capacity provider and auto scaling
-    USERDATA=$(base64 -w 0 /home/ec2-user/workspace/my-workspace/workshop/ec2_user_data.sh)
+    USERDATA=$(base64 -w 0 /home/ec2-user/workspace/my-workspace/workshop/ecs-cluster-bootstrap.sh)
     ECS_AMI_ID=$(aws ssm get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id --query "Parameters[0].Value" --output text)
 
     echo "Creating launch template..."
