@@ -982,7 +982,8 @@ full_build() {
         fix_image_upload && \
         fix_gps_data && \
         create_efs_storage && \
-        configure_service_scaling
+        configure_service_scaling && \
+        configure_capacity_scaling
         echo -e "${GREEN}✅ Full setup completed!${NC}"
     else
         echo "Setup cancelled"
