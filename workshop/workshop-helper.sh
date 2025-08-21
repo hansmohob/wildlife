@@ -1078,6 +1078,8 @@ cleanup_asg() {
     # AWS CLI COMMANDS: Delete Auto Scaling Group and launch template
     if [[ -n "$ASG_ARN" ]]; then
         ASG_NAME=$(echo "$ASG_ARN" | awk -F'/' '{print $NF}')
+        LAUNCH_TEMPLATE_NAME=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateName' --output text 2>/dev/null)
+
         echo "Force deleting ASG: $ASG_NAME"
         aws autoscaling delete-auto-scaling-group --auto-scaling-group-name "$ASG_NAME" --force-delete --no-cli-pager
         
@@ -1085,12 +1087,14 @@ cleanup_asg() {
         while aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].AutoScalingGroupName' --output text 2>/dev/null | grep -q "$ASG_NAME"; do
             sleep 5
         done
+        
+        if [[ -n "$LAUNCH_TEMPLATE_NAME" && "$LAUNCH_TEMPLATE_NAME" != "None" ]]; then
+            echo "Deleting launch template..."
+            aws ec2 delete-launch-template --launch-template-name "$LAUNCH_TEMPLATE_NAME" --no-cli-pager
+        fi
     else
         echo "No ASG ARN found in vars file"
     fi
-    
-    echo "Deleting launch template..."
-    aws ec2 delete-launch-template --launch-template-name REPLACE_PREFIX_CODE-launchtemplate-ecs --no-cli-pager
     
     # Clear ASG variable
     save_variable "ASG_ARN" ""
