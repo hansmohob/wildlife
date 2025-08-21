@@ -200,4 +200,4 @@ def data_get_sighting(sighting_id):
 
 if __name__ == '__main__':
     print("Starting wildlife application with integrated data API on port 5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
