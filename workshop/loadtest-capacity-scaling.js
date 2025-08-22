@@ -12,7 +12,7 @@ export let options = {
     { duration: '30s', target: 600 },   // Push to 600 users
     { duration: '30s', target: 900 },   // Peak load to force scaling
     
-    // Sustained very high load to trigger EC2 capacity scaling
+    // Sustained high load to trigger EC2 capacity scaling
     { duration: '6m', target: 1200 },   // Maximum load to exceed EC2 capacity
     
     // Gradual ramp-down to observe scaling behavior
@@ -22,7 +22,7 @@ export let options = {
   ],
   thresholds: {
     http_req_duration: ['p(95)<8000'], // More lenient for higher load
-    http_req_failed: ['rate<0.4'],     // Expect more failures under heavy load
+    http_req_failed: ['rate<0.4'],     // Less than 4% failures 
   },
 };
 
@@ -48,7 +48,7 @@ export default function() {
     'sighting created': (r) => r.status === 200,
   });
   
-  // 2. Create ANOTHER sighting (more media service load)
+  // 2. Create sightings
   http.post(`${TARGET_URL}/api/sightings`, {
     species: `Test Animal ${Math.random()}`,
     habitat: 'Savanna',
@@ -58,12 +58,12 @@ export default function() {
     description: `Capacity test sighting - ${new Date().toISOString()}`
   });
   
-  // 3. Try to access multiple images (hits MEDIA service)
+  // 3. Access multiple images
   for (let i = 0; i < 3; i++) {
     http.get(`${TARGET_URL}/api/images/sightings/20250820/test_image_${Math.floor(Math.random() * 20)}.jpg`);
   }
   
-  // 4. Get sightings (hits dataapi, but also exercises the system)
+  // 4. Get sightings (hits dataapi)
   http.get(`${TARGET_URL}/api/sightings`);
   
   // Small delay but keep pressure high

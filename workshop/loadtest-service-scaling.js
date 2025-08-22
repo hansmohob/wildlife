@@ -7,9 +7,9 @@ const TARGET_URL = `${ALB_URL}/wildlife`;
 
 export let options = {
   stages: [
-    // Aggressive ramp-up to trigger scaling Frontend service scaling
+    // Aggressive ramp-up to trigger scaling frontend service scaling
     { duration: '30s', target: 150 },   // Quick spike to 150 users
-    { duration: '1m', target: 250 },    // Push much higher to ensure CPU > 70%
+    { duration: '1m', target: 250 },    // Push to ensure CPU > 70%
     { duration: '2m', target: 300 },    // Peak load to trigger multiple scale-outs
     
     // Sustained high load to see scaling events
@@ -27,7 +27,7 @@ export let options = {
 };
 
 export default function() {
-  // Make multiple requests to increase CPU load per user
+  // Multiple requests to increase CPU load per user
   let response1 = http.get(TARGET_URL, {
     headers: {
       'User-Agent': 'k6-capacity-scaling-test/1.0',
@@ -40,13 +40,13 @@ export default function() {
     'response time < 5s': (r) => r.timings.duration < 5000,
   });
   
-  // Add more requests to stress the frontend
+  // Add requests to stress frontend
   http.get(`${TARGET_URL}/api/animals`);
   http.get(`${TARGET_URL}/api/sightings`);
   
-  // Add a small delay but keep pressure high
+  // Small delay but keep pressure high
   sleep(0.3);
   
-  // Additional request burst to really stress CPU
+  // Additional request burst to stress CPU
   http.get(TARGET_URL);
 }
