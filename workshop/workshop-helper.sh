@@ -275,7 +275,7 @@ build_images() {
         docker build -t REPLACE_PREFIX_CODE/datadb ./datadb && \
         docker build -t REPLACE_PREFIX_CODE/dataapi ./dataapi && \
         docker build -t REPLACE_PREFIX_CODE/frontend ./frontend && \
-        cp ../terraform/ignoreme.txt ./media/dockerfile && \
+        cp ../terraform-live/ignoreme.txt ./media/dockerfile && \
         docker build -t REPLACE_PREFIX_CODE/media ./media && \
         docker image ls | grep REPLACE_PREFIX_CODE
         
