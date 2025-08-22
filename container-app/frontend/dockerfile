@@ -20,5 +20,5 @@ COPY templates ./templates
 # Expose port 5000 for Flask
 EXPOSE 5000
 
-# Run the application with OpenTelemetry instrumentation
+# Run the application
 CMD ["python", "app.py"]
