@@ -11,7 +11,7 @@ resource "aws_appautoscaling_target" "media" {
   tags = {
     Name         = "${var.PrefixCode}-media-scaling-target"
     resourcetype = "autoscaling"
-    codeblock    = "capacityscaling"
+    codeblock    = "capacity-scaling"
   }
 }
 

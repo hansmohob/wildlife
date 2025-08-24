@@ -17,7 +17,7 @@ resource "aws_ecs_cluster" "main" {
   tags = {
     Name         = "${var.PrefixCode}-ecs"
     resourcetype = "compute"
-    codeblock    = "ecscluster"
+    codeblock    = "ecs-cluster"
   }
 }
 
@@ -40,7 +40,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
   tags = {
     Name         = "${var.PrefixCode}-capacity-ec2"
     resourcetype = "compute"
-    codeblock    = "ecscluster"
+    codeblock    = "ecs-cluster"
   }
 }
 
@@ -81,14 +81,14 @@ resource "aws_launch_template" "ecs" {
     tags = {
       Name         = "${var.PrefixCode}-ecs-instance"
       resourcetype = "compute"
-      codeblock    = "ecscluster"
+      codeblock    = "ecs-cluster"
     }
   }
 
   tags = {
     Name         = "${var.PrefixCode}-ecs-launch-template"
     resourcetype = "compute"
-    codeblock    = "ecscluster"
+    codeblock    = "ecs-cluster"
   }
 }
 

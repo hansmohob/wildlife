@@ -1,5 +1,5 @@
 # ECS Task Definition Module
-# Creates a task definition with main container and X-Ray sidecar
+# Creates ECS task definition with container configuration and logging
 
 # Get current AWS account ID and region
 data "aws_caller_identity" "current" {}
@@ -110,6 +110,6 @@ resource "aws_ecs_task_definition" "task" {
   tags = {
     Name         = var.family
     resourcetype = "compute"
-    codeblock    = "taskdefinitions"
+    codeblock    = "ecs-task-definition"
   }
 }

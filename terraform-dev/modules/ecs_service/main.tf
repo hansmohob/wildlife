@@ -1,6 +1,5 @@
 # ECS Service Module
-# Creates an ECS service with optional load balancer
-# Service Connect configuration is handled in the root module
+# Creates ECS service with load balancer integration and service connect
 
 # Get current AWS region
 data "aws_region" "current" {}
@@ -84,7 +83,7 @@ resource "aws_ecs_service" "service" {
   tags = {
     Name         = var.service_name
     resourcetype = "compute"
-    codeblock    = "ecsservices"
+    codeblock    = "ecs-service"
   }
 
   # Ignore changes to desired_count to allow Application Auto Scaling to manage it

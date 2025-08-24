@@ -25,7 +25,7 @@ resource "aws_lb_target_group" "frontend" {
   tags = {
     Name         = "${var.PrefixCode}-targetgroup-ecs"
     resourcetype = "network"
-    codeblock    = "loadbalancer"
+    codeblock    = "load-balancer"
   }
 }
 
@@ -42,7 +42,7 @@ resource "aws_lb" "main" {
   tags = {
     Name         = "${var.PrefixCode}-alb-ecs"
     resourcetype = "network"
-    codeblock    = "loadbalancer"
+    codeblock    = "load-balancer"
   }
 }
 
@@ -60,7 +60,7 @@ resource "aws_lb_listener" "frontend" {
   tags = {
     Name         = "${var.PrefixCode}-alb-listener"
     resourcetype = "network"
-    codeblock    = "loadbalancer"
+    codeblock    = "load-balancer"
   }
 }
 

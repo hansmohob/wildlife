@@ -7,6 +7,6 @@ resource "aws_service_discovery_http_namespace" "main" {
   tags = {
     Name         = "${var.PrefixCode}-namespace"
     resourcetype = "network"
-    codeblock    = "serviceconnect"
+    codeblock    = "service-connect"
   }
 }

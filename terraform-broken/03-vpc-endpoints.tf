@@ -13,7 +13,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   tags = {
     Name         = "${var.PrefixCode}-vpce-ecr-api"
     resourcetype = "network"
-    codeblock    = "vpcendpoints"
+    codeblock    = "vpc-endpoints"
   }
 }
 
@@ -30,6 +30,6 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   tags = {
     Name         = "${var.PrefixCode}-vpce-ecr-dkr"
     resourcetype = "network"
-    codeblock    = "vpcendpoints"
+    codeblock    = "vpc-endpoints"
   }
 }

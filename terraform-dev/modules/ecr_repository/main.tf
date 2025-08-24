@@ -1,3 +1,11 @@
+# ECR Repository Module
+# Creates ECR repository with lifecycle policy and encryption
+
+# Get default KMS key for ECR encryption
+data "aws_kms_key" "default" {
+  key_id = "alias/aws/ecr"
+}
+
 resource "aws_ecr_repository" "repo" {
   name                 = var.name
   image_tag_mutability = "MUTABLE"
@@ -14,11 +22,12 @@ resource "aws_ecr_repository" "repo" {
 
   tags = {
     Name         = var.name
-    resourcetype = "compute"
-    codeblock    = "ecscluster"
+    resourcetype = "container"
+    codeblock    = "ecr-repository"
   }
 }
 
+# ECR Lifecycle Policy - Clean up old images
 resource "aws_ecr_lifecycle_policy" "policy" {
   repository = aws_ecr_repository.repo.name
 

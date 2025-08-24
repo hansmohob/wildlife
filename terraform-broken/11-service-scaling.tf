@@ -11,7 +11,7 @@ resource "aws_appautoscaling_target" "frontend" {
   tags = {
     Name         = "${var.PrefixCode}-frontend-scaling-target"
     resourcetype = "autoscaling"
-    codeblock    = "servicescaling"
+    codeblock    = "service-scaling"
   }
 }
 
