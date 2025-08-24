@@ -1,8 +1,37 @@
-# Application Load Balancer and Target Groups
-# This file creates the ALB that distributes traffic to our ECS services
+# Application Load Balancer for Wildlife Application
+# Creates ALB, target group, and listener for frontend service
+
+# Target Group for Frontend Service
+resource "aws_lb_target_group" "frontend" {
+  name        = "wildlife-targetgroup-ecs"
+  port        = 5000
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
+    path                = "/wildlife/health"
+    matcher             = "200"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+  }
+
+  ip_address_type = "ipv4"
+
+  tags = {
+    Name         = "wildlife-targetgroup-ecs"
+    resourcetype = "network"
+    codeblock    = "loadbalancer"
+  }
+}
 
 # Application Load Balancer
-resource "aws_lb" "wildlife" {
+resource "aws_lb" "main" {
   name               = "wildlife-alb-ecs"
   internal           = false
   load_balancer_type = "application"
@@ -12,93 +41,43 @@ resource "aws_lb" "wildlife" {
   enable_deletion_protection = false
 
   tags = {
-    Name        = "wildlife-alb-ecs"
-    Environment = "workshop"
+    Name         = "wildlife-alb-ecs"
+    resourcetype = "network"
+    codeblock    = "loadbalancer"
   }
 }
 
-# Target Group for Frontend Service
-resource "aws_lb_target_group" "wildlife_frontend" {
-  name        = "wildlife-frontend-tg"
-  port        = 5000
-  protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/health"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
-
-  tags = {
-    Name        = "wildlife-frontend-tg"
-    Service     = "frontend"
-    Environment = "workshop"
-  }
-}
-
-# ALB Listener for HTTP traffic
-resource "aws_lb_listener" "wildlife" {
-  load_balancer_arn = aws_lb.wildlife.arn
+# Listener for HTTP traffic
+resource "aws_lb_listener" "frontend" {
+  load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.wildlife_frontend.arn
-  }
-}
-
-# TODO: The listener above has an error - it should use target_group_arn inside a forward block
-# Fix the default_action block to properly reference the target group
-
-# Target Group for Media Service (for direct API access)
-resource "aws_lb_target_group" "wildlife_media" {
-  name        = "wildlife-media-tg"
-  port        = 5000
-  protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/health"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
+    target_group_arn = aws_lb_target_group.frontend.arn
   }
 
   tags = {
-    Name        = "wildlife-media-tg"
-    Service     = "media"
-    Environment = "workshop"
+    Name         = "wildlife-alb-listener"
+    resourcetype = "network"
+    codeblock    = "loadbalancer"
   }
 }
 
-# Listener Rule for Media Service API paths
-resource "aws_lb_listener_rule" "wildlife_media" {
-  listener_arn = aws_lb_listener.wildlife.arn
-  priority     = 100
+# Output for accessing the application
+output "application_url" {
+  description = "URL to access the Wildlife application"
+  value       = "http://${aws_lb.main.dns_name}/wildlife"
+}
 
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.wildlife_media.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/wildlife/api/*"]
-    }
-  }
+# Security Group Rule to allow public HTTP access to ALB
+resource "aws_security_group_rule" "alb_http_public" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = data.aws_security_group.alb.id
+  description       = "Allow HTTP access from anywhere"
 }

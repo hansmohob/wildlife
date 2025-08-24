@@ -2,12 +2,13 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.94.1"
+      version = "~> 6.10.0"
     }
   }
 
   backend "s3" {  
-    key          = "terraform/statefile.tfstate"
+    bucket       = "aws102-ws-s3bucketwildlife-gzhxd8py4ork"
+    key          = "terraform/statefile-dev.tfstate"
     encrypt      = true
     use_lockfile = true
   }

@@ -94,3 +94,25 @@ data "aws_s3_bucket" "wildlife_images" {
 data "aws_availability_zones" "available" {
   state = "available"
 }
+# From CloudFormation: iaminstanceprofileecs
+# InstanceProfileName: ${PrefixCode}-iamprofile-ecs
+data "aws_iam_instance_profile" "ecs" {
+  name = "wildlife-iamprofile-ecs"
+}
+
+# Reference existing EC2 key pair created by Event Engine
+# From CloudFormation: ec2keypaircodeserver
+# KeyName: ${PrefixCode}-ec2-keypair
+data "aws_key_pair" "main" {
+  key_name = "wildlife-ec2-keypair"
+}
+
+# IAM Policy for S3 access (used for image upload fix)
+data "aws_iam_policy" "s3_policy" {
+  name = "wildlife-iampolicy-s3"
+}
+
+# IAM Policy for EFS access (used for persistent storage)
+data "aws_iam_policy" "efs_policy" {
+  name = "wildlife-iampolicy-efs"
+}

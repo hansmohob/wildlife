@@ -1,97 +1,42 @@
-# ECR Repositories for Wildlife Application Microservices
-# This file creates container image repositories for each service
+# ECR Repositories for Wildlife Application
+# Creates container image repositories for each microservice
 
-# ECR Repository for Frontend Service
-resource "aws_ecr_repository" "wildlife_frontend" {
-  name                 = "wildlife-frontend"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  tags = {
-    Name        = "wildlife-frontend"
-    Service     = "frontend"
-    Environment = "workshop"
-  }
+# Get KMS key for ECR encryption
+data "aws_kms_key" "default" {
+  key_id = "alias/aws/ecr"
 }
 
-# ECR Repository for Media Service
-resource "aws_ecr_repository" "wildlife_media" {
-  name                 = "wildlife-media"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "AES256"
-  }
-
-  tags = {
-    Name        = "wildlife-media"
-    Service     = "media"
-    Environment = "workshop"
-  }
+# Frontend service repository
+module "ecr_frontend" {
+  source      = "./modules/ecr_repository"
+  name        = "${var.PrefixCode}/frontend"
+  kms_key_arn = data.aws_kms_key.default.arn
 }
 
-# ECR Repository for DataAPI Service
-# TODO: Add the wildlife-dataapi repository here
-# Hint: Follow the same pattern as the repositories above
-
-# ECR Repository for Alerts Service  
-# TODO: Add the wildlife-alerts repository here
-# Hint: Follow the same pattern as the repositories above
-
-# ECR Repository for MongoDB Database
-# TODO: Add the wildlife-datadb repository here
-# Hint: Follow the same pattern as the repositories above
-
-# ECR Repository Lifecycle Policies to manage image retention
-resource "aws_ecr_lifecycle_policy" "wildlife_frontend_policy" {
-  repository = aws_ecr_repository.wildlife_frontend.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 images"
-        selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
+# Data API service repository
+module "ecr_dataapi" {
+  source      = "./modules/ecr_repository"
+  name        = "${var.PrefixCode}/dataapi"
+  kms_key_arn = data.aws_kms_key.default.arn
 }
 
-resource "aws_ecr_lifecycle_policy" "wildlife_media_policy" {
-  repository = aws_ecr_repository.wildlife_media.name
+# Alerts service repository
+module "ecr_alerts" {
+  source      = "./modules/ecr_repository"
+  name        = "${var.PrefixCode}/alerts"
+  kms_key_arn = data.aws_kms_key.default.arn
+}
 
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 10 images"
-        selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
+# Media service repository
+module "ecr_media" {
+  source      = "./modules/ecr_repository"
+  name        = "${var.PrefixCode}/media"
+  kms_key_arn = data.aws_kms_key.default.arn
+}
+
+# Database service repository
+module "ecr_datadb" {
+  source      = "./modules/ecr_repository"
+  name        = "${var.PrefixCode}/datadb"
+  kms_key_arn = data.aws_kms_key.default.arn
 }

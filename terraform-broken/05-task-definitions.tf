@@ -1,197 +1,151 @@
-# ECS Task Definitions for Wildlife Application Services
-# This file defines the container specifications for each microservice
+# ECS Task Definitions for Wildlife Application
+# Creates task definitions for all microservices using module
 
-# Task Definition for Frontend Service
-resource "aws_ecs_task_definition" "wildlife_frontend" {
-  family                   = "wildlife-frontend"
+# Frontend Task Definition
+module "task_frontend" {
+  source = "./modules/ecs_task_definition"
+
+  family                   = "wildlife-frontend-task"
+  cpu                      = "1024"
+  memory                   = "2048"
   requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 256
-  memory                   = 512
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn            = data.aws_iam_role.ecs_task.arn
+  task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_definitions = jsonencode([
+  container_name = "wildlife-frontend"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/frontend:latest"
+  container_port = 5000
+  port_name      = "frontend-http"
+  app_protocol   = "http"
+  
+  readonly_root_filesystem = false
+  log_group               = "/aws/ecs/wildlife-frontend"
+
+  volumes = [
     {
-      name      = "wildlife-frontend"
-      image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/wildlife-frontend:latest"
-      essential = true
-
-      portMappings = [
-        {
-          containerPort = 5000
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "MEDIA_SERVICE_URL"
-          value = "http://wildlife-media.wildlife:5000"
-        },
-        {
-          name  = "DATAAPI_SERVICE_URL"
-          value = "http://wildlife-dataapi.wildlife:5000"
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.wildlife_frontend.name
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
+      name = "tmp-volume"
     }
-  ])
+  ]
 
-  tags = {
-    Name        = "wildlife-frontend"
-    Service     = "frontend"
-    Environment = "workshop"
-  }
+  mount_points = [
+    {
+      sourceVolume  = "tmp-volume"
+      containerPath = "/tmp"
+      readOnly      = false
+    }
+  ]
 }
 
-# Task Definition for Media Service
-resource "aws_ecs_task_definition" "wildlife_media" {
-  family                   = "wildlife-media"
+# DataAPI Task Definition
+module "task_dataapi" {
+  source = "./modules/ecs_task_definition"
+
+  family                   = "wildlife-dataapi-task"
+  cpu                      = "512"
+  memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 512
-  memory                   = 1024
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn            = data.aws_iam_role.ecs_task.arn
+  task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_definitions = jsonencode([
-    {
-      name      = "wildlife-media"
-      image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/wildlife-media:latest"
-      essential = true
-
-      portMappings = [
-        {
-          containerPort = 5000
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "S3_BUCKET"
-          value = data.aws_s3_bucket.wildlife_images.bucket
-        },
-        {
-          name  = "MONGODB_URL"
-          value = "mongodb://wildlife-datadb.wildlife:27017/wildlife"
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.wildlife_media.name
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
-    }
-  ])
-
-  tags = {
-    Name        = "wildlife-media"
-    Service     = "media"
-    Environment = "workshop"
-  }
+  container_name = "wildlife-dataapi"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/dataapi:latest"
+  container_port = 5000
+  port_name      = "data-http"
+  
+  readonly_root_filesystem = true
+  log_group               = "/aws/ecs/wildlife-dataapi"
 }
 
-# Task Definition for MongoDB Database
-resource "aws_ecs_task_definition" "wildlife_datadb" {
-  family                   = "wildlife-datadb"
+# Alerts Task Definition
+module "task_alerts" {
+  source = "./modules/ecs_task_definition"
+
+  family                   = "wildlife-alerts-task"
+  cpu                      = "512"
+  memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 256
-  memory                   = 512
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn            = data.aws_iam_role.ecs_task.arn
+  task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  volume {
-    name = "mongodb-data"
-
-    efs_volume_configuration {
-      file_system_id     = aws_efs_file_system.mongodb.id
-      root_directory     = "/"
-      transit_encryption = "ENABLED"
-      authorization_config {
-        access_point_id = aws_efs_access_point.mongodb.id
-      }
-    }
-  }
-
-  container_definitions = jsonencode([
-    {
-      name      = "wildlife-datadb"
-      image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/wildlife-datadb:latest"
-      essential = true
-
-      portMappings = [
-        {
-          containerPort = 27017
-          protocol      = "tcp"
-        }
-      ]
-
-      mountPoints = [
-        {
-          sourceVolume  = "mongodb-data"
-          containerPath = "/data/db"
-          readOnly      = false
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = "/aws/ecs/wildlife-datadb"
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-
-      healthCheck = {
-        command     = ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
-    }
-  ])
-
-  tags = {
-    Name        = "wildlife-datadb"
-    Service     = "database"
-    Environment = "workshop"
-  }
+  container_name = "wildlife-alerts"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/alerts:latest"
+  container_port = 5000
+  port_name      = "alerts-http"
+  
+  readonly_root_filesystem = true
+  log_group               = "/aws/ecs/wildlife-alerts"
 }
 
-# TODO: Add task definitions for wildlife-dataapi and wildlife-alerts services
-# Both should follow similar patterns to the services above
-# DataAPI: cpu=256, memory=512, port=5000, needs MONGODB_URL environment variable
-# Alerts: cpu=256, memory=512, port=5000, needs DATAAPI_SERVICE_URL environment variable
+# Media Task Definition (EC2)
+module "task_media" {
+  source = "./modules/ecs_task_definition"
+
+  family                   = "wildlife-media-task"
+  cpu                      = "512"
+  memory                   = "1024"
+  requires_compatibilities = ["EC2"]
+  execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
+  task_role_arn           = data.aws_iam_role.ecs_task.arn
+
+  container_name = "wildlife-media"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/media:latest"
+  container_port = 5000
+  port_name      = "media-http"
+  
+  readonly_root_filesystem = false
+  log_group               = "/aws/ecs/wildlife-media"
+
+  # Environment variables for S3 image upload
+  environment_variables = [
+    {
+      name  = "AWS_REGION"
+      value = data.aws_region.current.id
+    },
+    {
+      name  = "BUCKET_NAME"
+      value = data.aws_s3_bucket.wildlife_images.bucket
+    }
+  ]
+}
+
+# DataDB Task Definition (MongoDB with EFS)
+module "task_datadb" {
+  source = "./modules/ecs_task_definition"
+
+  family                   = "wildlife-datadb-task"
+  cpu                      = "512"
+  memory                   = "1024"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
+  task_role_arn           = data.aws_iam_role.ecs_task.arn
+
+  container_name = "wildlife-datadb"
+  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/datadb:latest"
+  container_port = 27017
+  port_name      = "data-tcp"
+  port_protocol  = "tcp"
+  
+  readonly_root_filesystem = false
+  user                    = "0:0"  # Run as root for MongoDB
+  log_group               = "/aws/ecs/wildlife-datadb"
+
+  # EFS volume for MongoDB data persistence
+  volumes = [
+    {
+      name = "mongodb-data"
+      efs_volume_configuration = {
+        file_system_id = aws_efs_file_system.mongodb.id
+        root_directory = "/"
+      }
+    }
+  ]
+
+  # Mount EFS volume to MongoDB data directory
+  mount_points = [
+    {
+      sourceVolume  = "mongodb-data"
+      containerPath = "/data/db"
+      readOnly      = false
+    }
+  ]
+}
