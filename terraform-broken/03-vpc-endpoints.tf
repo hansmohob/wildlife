@@ -1,5 +1,4 @@
 # VPC Endpoints for ECS Container Image Operations
-# Creates ECR endpoints for container image access from private subnets
 
 # ECR API Interface Endpoint - For ECR API calls
 resource "aws_vpc_endpoint" "ecr_api" {

@@ -1,6 +1,3 @@
-# =============================================================================
-# CAPACITY AUTO SCALING CONFIGURATION
-# =============================================================================
 # Configure auto scaling for EC2 instances and media service to trigger capacity scaling
 
 # Application Auto Scaling Target for Media Service (to trigger capacity scaling)
@@ -12,7 +9,7 @@ resource "aws_appautoscaling_target" "media" {
   service_namespace  = "ecs"
 
   tags = {
-    Name         = "wildlife-media-scaling-target"
+    Name         = "${var.PrefixCode}-media-scaling-target"
     resourcetype = "autoscaling"
     codeblock    = "capacityscaling"
   }
@@ -20,7 +17,7 @@ resource "aws_appautoscaling_target" "media" {
 
 # CPU-based Target Tracking Scaling Policy for Media Service (30% CPU target)
 resource "aws_appautoscaling_policy" "media_cpu" {
-  name               = "wildlife-media-cpu-scaling"
+  name               = "${var.PrefixCode}-media-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.media.resource_id
   scalable_dimension = aws_appautoscaling_target.media.scalable_dimension

@@ -1,9 +1,8 @@
-# Application Load Balancer for Wildlife Application
-# Creates ALB, target group, and listener for frontend service
+# Application Load Balancer for Application
 
 # Target Group for Frontend Service
 resource "aws_lb_target_group" "frontend" {
-  name        = "wildlife-targetgroup-ecs"
+  name        = "${var.PrefixCode}-targetgroup-ecs"
   port        = 5000
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.main.id
@@ -24,7 +23,7 @@ resource "aws_lb_target_group" "frontend" {
   ip_address_type = "ipv4"
 
   tags = {
-    Name         = "wildlife-targetgroup-ecs"
+    Name         = "${var.PrefixCode}-targetgroup-ecs"
     resourcetype = "network"
     codeblock    = "loadbalancer"
   }
@@ -32,7 +31,7 @@ resource "aws_lb_target_group" "frontend" {
 
 # Application Load Balancer
 resource "aws_lb" "main" {
-  name               = "wildlife-alb-ecs"
+  name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [data.aws_security_group.alb.id]
@@ -41,7 +40,7 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
 
   tags = {
-    Name         = "wildlife-alb-ecs"
+    Name         = "${var.PrefixCode}-alb-ecs"
     resourcetype = "network"
     codeblock    = "loadbalancer"
   }
@@ -59,7 +58,7 @@ resource "aws_lb_listener" "frontend" {
   }
 
   tags = {
-    Name         = "wildlife-alb-listener"
+    Name         = "${var.PrefixCode}-alb-listener"
     resourcetype = "network"
     codeblock    = "loadbalancer"
   }
@@ -67,7 +66,7 @@ resource "aws_lb_listener" "frontend" {
 
 # Output for accessing the application
 output "application_url" {
-  description = "URL to access the Wildlife application"
+  description = "URL to access the application"
   value       = "http://${aws_lb.main.dns_name}/wildlife"
 }
 

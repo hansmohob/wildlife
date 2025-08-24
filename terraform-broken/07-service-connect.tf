@@ -1,12 +1,11 @@
-# Service Connect Namespace for Wildlife Application
-# Must be created before ECS services can use Service Connect
+# Service Connect Namespace for Application
 
-resource "aws_service_discovery_http_namespace" "wildlife" {
-  name        = "wildlife"
-  description = "Service Connect namespace for Wildlife application"
+resource "aws_service_discovery_http_namespace" "main" {
+  name        = var.PrefixCode
+  description = "Service Connect namespace for application"
 
   tags = {
-    Name         = "wildlife-namespace"
+    Name         = "${var.PrefixCode}-namespace"
     resourcetype = "network"
     codeblock    = "serviceconnect"
   }

@@ -1,5 +1,4 @@
-# IAM Policy Attachments for Wildlife Application
-# Fixes image upload by attaching S3 policy to ECS task role
+# IAM Policy Attachments for Application
 
 # Attach S3 policy to ECS task role for image upload functionality
 resource "aws_iam_role_policy_attachment" "ecs_task_s3_policy" {

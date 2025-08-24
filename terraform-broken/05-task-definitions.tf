@@ -1,25 +1,24 @@
-# ECS Task Definitions for Wildlife Application
-# Creates task definitions for all microservices using module
+# ECS Task Definitions for Application
 
 # Frontend Task Definition
 module "task_frontend" {
   source = "./modules/ecs_task_definition"
 
-  family                   = "wildlife-frontend-task"
+  family                   = "${var.PrefixCode}-frontend-task"
   cpu                      = "1024"
   memory                   = "2048"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_name = "wildlife-frontend"
-  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/frontend:latest"
+  container_name = "${var.PrefixCode}-frontend"
+  container_image = "${module.ecr_frontend.repository_url}:latest"
   container_port = 5000
   port_name      = "frontend-http"
   app_protocol   = "http"
   
   readonly_root_filesystem = false
-  log_group               = "/aws/ecs/wildlife-frontend"
+  log_group               = "/aws/ecs/${var.PrefixCode}-frontend"
 
   volumes = [
     {
@@ -40,60 +39,60 @@ module "task_frontend" {
 module "task_dataapi" {
   source = "./modules/ecs_task_definition"
 
-  family                   = "wildlife-dataapi-task"
+  family                   = "${var.PrefixCode}-dataapi-task"
   cpu                      = "512"
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_name = "wildlife-dataapi"
-  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/dataapi:latest"
+  container_name = "${var.PrefixCode}-dataapi"
+  container_image = "${module.ecr_dataapi.repository_url}:latest"
   container_port = 5000
   port_name      = "data-http"
   
   readonly_root_filesystem = true
-  log_group               = "/aws/ecs/wildlife-dataapi"
+  log_group               = "/aws/ecs/${var.PrefixCode}-dataapi"
 }
 
 # Alerts Task Definition
 module "task_alerts" {
   source = "./modules/ecs_task_definition"
 
-  family                   = "wildlife-alerts-task"
+  family                   = "${var.PrefixCode}-alerts-task"
   cpu                      = "512"
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_name = "wildlife-alerts"
-  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/alerts:latest"
+  container_name = "${var.PrefixCode}-alerts"
+  container_image = "${module.ecr_alerts.repository_url}:latest"
   container_port = 5000
   port_name      = "alerts-http"
   
   readonly_root_filesystem = true
-  log_group               = "/aws/ecs/wildlife-alerts"
+  log_group               = "/aws/ecs/${var.PrefixCode}-alerts"
 }
 
 # Media Task Definition (EC2)
 module "task_media" {
   source = "./modules/ecs_task_definition"
 
-  family                   = "wildlife-media-task"
+  family                   = "${var.PrefixCode}-media-task"
   cpu                      = "512"
   memory                   = "1024"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_name = "wildlife-media"
-  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/media:latest"
+  container_name = "${var.PrefixCode}-media"
+  container_image = "${module.ecr_media.repository_url}:latest"
   container_port = 5000
   port_name      = "media-http"
   
   readonly_root_filesystem = false
-  log_group               = "/aws/ecs/wildlife-media"
+  log_group               = "/aws/ecs/${var.PrefixCode}-media"
 
   # Environment variables for S3 image upload
   environment_variables = [
@@ -112,22 +111,22 @@ module "task_media" {
 module "task_datadb" {
   source = "./modules/ecs_task_definition"
 
-  family                   = "wildlife-datadb-task"
+  family                   = "${var.PrefixCode}-datadb-task"
   cpu                      = "512"
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn           = data.aws_iam_role.ecs_task.arn
 
-  container_name = "wildlife-datadb"
-  container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com/wildlife/datadb:latest"
+  container_name = "${var.PrefixCode}-datadb"
+  container_image = "${module.ecr_datadb.repository_url}:latest"
   container_port = 27017
   port_name      = "data-tcp"
   port_protocol  = "tcp"
   
   readonly_root_filesystem = false
   user                    = "0:0"  # Run as root for MongoDB
-  log_group               = "/aws/ecs/wildlife-datadb"
+  log_group               = "/aws/ecs/${var.PrefixCode}-datadb"
 
   # EFS volume for MongoDB data persistence
   volumes = [

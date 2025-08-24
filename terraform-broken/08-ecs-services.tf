@@ -1,11 +1,8 @@
-# ECS Services for Wildlife Application
-# Creates all microservices using the ECS service module
 
-# DataDB Service (MongoDB) - Fargate
 module "service_datadb" {
   source = "./modules/ecs_service"
 
-  service_name        = "wildlife-datadb-service"
+  service_name        = "${var.PrefixCode}-datadb-service"
   cluster_name        = aws_ecs_cluster.main.name
   task_definition_arn = module.task_datadb.task_definition_arn
   desired_count       = 1
@@ -15,16 +12,14 @@ module "service_datadb" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  # Service Connect configuration
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.wildlife.arn
+  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name     = "data-tcp"
-  service_connect_discovery_name = "wildlife-datadb"
+  service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-datadb"
   service_connect_port          = 27017
 
-  # No load balancer for database
   load_balancer_enabled = false
 
-  # ECS Exec configuration
+
   enable_execute_command = false
 }
 
@@ -32,7 +27,7 @@ module "service_datadb" {
 module "service_dataapi" {
   source = "./modules/ecs_service"
 
-  service_name        = "wildlife-dataapi-service"
+  service_name        = "${var.PrefixCode}-dataapi-service"
   cluster_name        = aws_ecs_cluster.main.name
   task_definition_arn = module.task_dataapi.task_definition_arn
   desired_count       = 2
@@ -42,16 +37,13 @@ module "service_dataapi" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  # Service Connect configuration
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.wildlife.arn
+  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name     = "data-http"
-  service_connect_discovery_name = "wildlife-dataapi"
+  service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-dataapi"
   service_connect_port          = 5000
 
-  # No load balancer for API
   load_balancer_enabled = false
 
-  # ECS Exec configuration
   enable_execute_command = false
 
   # Wait for DataDB to be running first
@@ -62,7 +54,7 @@ module "service_dataapi" {
 module "service_alerts" {
   source = "./modules/ecs_service"
 
-  service_name        = "wildlife-alerts-service"
+  service_name        = "${var.PrefixCode}-alerts-service"
   cluster_name        = aws_ecs_cluster.main.name
   task_definition_arn = module.task_alerts.task_definition_arn
   desired_count       = 2
@@ -72,16 +64,13 @@ module "service_alerts" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  # Service Connect configuration
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.wildlife.arn
+  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name     = "alerts-http"
-  service_connect_discovery_name = "wildlife-alerts"
+  service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-alerts"
   service_connect_port          = 5000
 
-  # No load balancer for alerts
   load_balancer_enabled = false
 
-  # ECS Exec configuration
   enable_execute_command = false
 
   # Wait for DataDB to be running first
@@ -92,15 +81,15 @@ module "service_alerts" {
 module "service_media" {
   source = "./modules/ecs_service"
 
-  service_name        = "wildlife-media-service"
+  service_name        = "${var.PrefixCode}-media-service"
   cluster_name        = aws_ecs_cluster.main.name
   task_definition_arn = module.task_media.task_definition_arn
   desired_count       = 2
 
-  # Use capacity provider instead of launch type
+  # Use EC2 capacity provider
   capacity_provider_strategy = [
     {
-      capacity_provider = "wildlife-capacity-ec2"
+      capacity_provider = aws_ecs_capacity_provider.ec2.name
       weight           = 1
       base             = 0
     }
@@ -110,19 +99,15 @@ module "service_media" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  # Service Connect configuration
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.wildlife.arn
+  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name     = "media-http"
-  service_connect_discovery_name = "wildlife-media"
+  service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-media"
   service_connect_port          = 5000
 
-  # No load balancer for media
   load_balancer_enabled = false
 
-  # ECS Exec configuration
   enable_execute_command = false
 
-  # Wait for DataDB to be running first
   depends_on = [module.service_datadb]
 }
 
@@ -130,7 +115,7 @@ module "service_media" {
 module "service_frontend" {
   source = "./modules/ecs_service"
 
-  service_name        = "wildlife-frontend-service"
+  service_name        = "${var.PrefixCode}-frontend-service"
   cluster_name        = aws_ecs_cluster.main.name
   task_definition_arn = module.task_frontend.task_definition_arn
   desired_count       = 2
@@ -140,19 +125,16 @@ module "service_frontend" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  # Service Connect configuration
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.wildlife.arn
+  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name     = "frontend-http"
-  service_connect_discovery_name = "wildlife-frontend"
+  service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-frontend"
   service_connect_port          = 5000
 
-  # Load balancer configuration
   load_balancer_enabled = true
   target_group_arn      = aws_lb_target_group.frontend.arn
-  container_name        = "wildlife-frontend"
+  container_name        = "${var.PrefixCode}-frontend"
   container_port        = 5000
 
-  # ECS Exec configuration
   enable_execute_command = false
 
   # Wait for DataDB to be running first

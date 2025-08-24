@@ -1,6 +1,3 @@
-# =============================================================================
-# SERVICE AUTO SCALING CONFIGURATION
-# =============================================================================
 # Configure auto scaling for the frontend service based on CPU utilization
 
 # Application Auto Scaling Target for Frontend Service
@@ -12,7 +9,7 @@ resource "aws_appautoscaling_target" "frontend" {
   service_namespace  = "ecs"
 
   tags = {
-    Name         = "wildlife-frontend-scaling-target"
+    Name         = "${var.PrefixCode}-frontend-scaling-target"
     resourcetype = "autoscaling"
     codeblock    = "servicescaling"
   }
@@ -20,7 +17,7 @@ resource "aws_appautoscaling_target" "frontend" {
 
 # CPU-based Target Tracking Scaling Policy
 resource "aws_appautoscaling_policy" "frontend_cpu" {
-  name               = "wildlife-frontend-cpu-scaling"
+  name               = "${var.PrefixCode}-frontend-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.frontend.resource_id
   scalable_dimension = aws_appautoscaling_target.frontend.scalable_dimension

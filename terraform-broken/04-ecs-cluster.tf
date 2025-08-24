@@ -1,5 +1,9 @@
 # ECS Cluster with Fargate and EC2 Capacity Providers
-# Creates cluster for running containerized wildlife application
+
+# Data source for ECS optimized AMI
+data "aws_ssm_parameter" "ecs_optimized_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id"
+}
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
@@ -12,6 +16,29 @@ resource "aws_ecs_cluster" "main" {
 
   tags = {
     Name         = "${var.PrefixCode}-ecs"
+    resourcetype = "compute"
+    codeblock    = "ecscluster"
+  }
+}
+
+# ECS Capacity Provider for EC2
+resource "aws_ecs_capacity_provider" "ec2" {
+  name = "${var.PrefixCode}-capacity-ec2"
+
+  auto_scaling_group_provider {
+    auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
+    managed_termination_protection = "DISABLED"
+
+    managed_scaling {
+      maximum_scaling_step_size = 2
+      minimum_scaling_step_size = 1
+      status                    = "ENABLED"
+      target_capacity           = 100
+    }
+  }
+
+  tags = {
+    Name         = "${var.PrefixCode}-capacity-ec2"
     resourcetype = "compute"
     codeblock    = "ecscluster"
   }
@@ -105,32 +132,4 @@ resource "aws_autoscaling_group" "ecs" {
     value               = "ecscluster"
     propagate_at_launch = false
   }
-}
-
-# ECS Capacity Provider for EC2
-resource "aws_ecs_capacity_provider" "ec2" {
-  name = "${var.PrefixCode}-capacity-ec2"
-
-  auto_scaling_group_provider {
-    auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
-    managed_termination_protection = "DISABLED"
-
-    managed_scaling {
-      maximum_scaling_step_size = 2
-      minimum_scaling_step_size = 1
-      status                    = "ENABLED"
-      target_capacity           = 100
-    }
-  }
-
-  tags = {
-    Name         = "${var.PrefixCode}-capacity-ec2"
-    resourcetype = "compute"
-    codeblock    = "ecscluster"
-  }
-}
-
-# Data source for ECS optimized AMI (Amazon Linux 2023 ARM64)
-data "aws_ssm_parameter" "ecs_optimized_ami" {
-  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id"
 }

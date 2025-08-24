@@ -1,5 +1,4 @@
-# ECR Repositories for Wildlife Application
-# Creates container image repositories for each microservice
+# ECR Repositories for Application
 
 # Get KMS key for ECR encryption
 data "aws_kms_key" "default" {
