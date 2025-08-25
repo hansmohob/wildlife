@@ -214,6 +214,6 @@ def get_sightings():
 
 if __name__ == '__main__':
     logger.info("Starting media service")
-    # nosec B104: Binding to 0.0.0.0 is required for containerized apps to receive traffic from ECS Service Connect
+    # Binding to 0.0.0.0 is required for containerized apps to receive traffic from ECS Service Connect
     # semgrep:ignore python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)  # nosec B104
