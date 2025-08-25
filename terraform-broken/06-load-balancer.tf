@@ -31,6 +31,8 @@ resource "aws_lb_target_group" "frontend" {
 
 # Application Load Balancer
 # checkov:skip=CKV_AWS_150:Deletion protection disabled for workshop environment to allow terraform destroy and automated cleanup. In production, enable deletion protection for safety.
+# checkov:skip=CKV2_AWS_20:HTTP to HTTPS redirect not applicable in workshop environment without SSL certificates. In production, always redirect HTTP to HTTPS.
+
 resource "aws_lb" "main" {
   name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
