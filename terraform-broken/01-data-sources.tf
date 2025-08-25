@@ -63,10 +63,6 @@ data "aws_iam_role" "ecs_task" {
   name = "wildlife-iamrole-ecs-task"
 }
 
-data "aws_s3_bucket" "wildlife_images" {
-  bucket = var.wildlife_s3_bucket_name
-}
-
 data "aws_iam_instance_profile" "ecs" {
   name = "wildlife-iamprofile-ecs"
 }

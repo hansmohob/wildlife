@@ -102,7 +102,7 @@ module "task_media" {
     },
     {
       name  = "BUCKET_NAME"
-      value = data.aws_s3_bucket.wildlife_images.bucket
+      value = var.wildlife_s3_bucket_name
     }
   ]
 }

@@ -8,3 +8,4 @@ Region     = "us-west-2"     # Corrected region
 # Wildlife Application Specific
 # Actual S3 bucket name from CloudFormation stack
 wildlife_s3_bucket_name = "REPLACE_S3_BUCKET_WILDLIFE"
+logs_s3_bucket_name" = "REPLACE_S3_BUCKET_LOGS"

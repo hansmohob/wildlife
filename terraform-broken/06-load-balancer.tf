@@ -47,8 +47,8 @@ resource "aws_lb" "main" {
 
   # Enable access logging for monitoring and troubleshooting
   access_logs {
-    bucket  = data.aws_s3_bucket.wildlife_images.bucket
-    prefix  = "alb-access-logs"
+    bucket  = var.logs_s3_bucket_name
+    prefix  = "alb-logs"
     enabled = true
   }
 
