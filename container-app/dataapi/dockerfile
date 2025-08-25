@@ -12,8 +12,15 @@ COPY requirements.txt .
 # Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy application code
 COPY app.py .
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 # Expose port 5000 for Flask
 EXPOSE 5000

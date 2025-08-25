@@ -7,3 +7,4 @@ FROM mongodb/mongodb-community-server:8.0-ubi8
 EXPOSE 27017
 
 # checkov:skip=CKV_DOCKER_2:Health checks handled by ECS Service Connect and internal monitoring. Docker HEALTHCHECK adds image bloat without significant benefit in orchestrated environments.
+# checkov:skip=CKV_DOCKER_3:MongoDB base image handles user management internally with mongodb user. Custom user creation would interfere with MongoDB's security model.
