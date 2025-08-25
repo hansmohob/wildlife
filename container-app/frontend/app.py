@@ -6,6 +6,7 @@ import requests
 import os
 import logging
 import time
+import re
 from aws_xray_sdk.core import xray_recorder, patch_all
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 
@@ -118,6 +119,19 @@ def get_sightings():
 @app.route('/wildlife/api/images/<path:image_key>')
 def get_image(image_key):
     try:
+        # Validate and sanitize image_key to prevent SSRF and path traversal
+        image_key = os.path.normpath(image_key)
+        
+        # Ensure it doesn't start with / or contain ..
+        if image_key.startswith('/') or '..' in image_key:
+            logger.warning(f"Invalid image key attempted: {image_key}")
+            return jsonify({"error": "Invalid image path"}), 400
+            
+        # Only allow alphanumeric, hyphens, underscores, dots, and forward slashes
+        if not re.match(r'^[a-zA-Z0-9._/-]+$', image_key):
+            logger.warning(f"Invalid characters in image key: {image_key}")
+            return jsonify({"error": "Invalid image path"}), 400
+        
         logger.info(f"Getting image: {image_key}")
         response = connect_with_retry(
             # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
