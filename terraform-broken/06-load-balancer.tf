@@ -69,44 +69,34 @@ resource "aws_lb_listener" "frontend" {
     target_group_arn = aws_lb_target_group.frontend.arn
   }
 
-<<<<<<< HEAD
   access_logs {
     bucket  = data.aws_s3_bucket.wildlife_images.bucket
     prefix  = "alb-access-logs"
     enabled = true
   }
 
-=======
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
   tags = {
-<<<<<<< HEAD
     Name         = "${var.PrefixCode}-alb-ecs"
     resourcetype = "network"
     codeblock    = "load-balancer"
-=======
     Name         = "${var.PrefixCode}-alb-listener"
     resourcetype = "network"
     codeblock    = "load-balancer"
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
   }
 }
 
-<<<<<<< HEAD
 # Listener for HTTP traffic
 # checkov:skip=CKV_AWS_2:WARNING - HTTP used for workshop simplicity. In production, always use HTTPS with proper SSL certificates.
 resource "aws_lb_listener" "frontend" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
-=======
 # Output for accessing the application
 output "application_url" {
   description = "URL to access the application"
   value       = "http://${aws_lb.main.dns_name}/wildlife"
 }
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
 
-<<<<<<< HEAD
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.frontend.arn
@@ -117,7 +107,6 @@ output "application_url" {
     resourcetype = "network"
     codeblock    = "load-balancer"
   }
-=======
 # Security Group Rule to allow public HTTP access to ALB
 resource "aws_security_group_rule" "alb_http_public" {
   type              = "ingress"
@@ -127,7 +116,6 @@ resource "aws_security_group_rule" "alb_http_public" {
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = data.aws_security_group.alb.id
   description       = "Allow HTTP access from anywhere"
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
 }
 
 # Output for accessing the application
