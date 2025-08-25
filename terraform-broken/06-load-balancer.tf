@@ -1,6 +1,7 @@
-# Application Load Balancer for Application
+# Application Load Balancer for Application traffic
 
 # Target Group for Frontend Service
+# checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
 resource "aws_lb_target_group" "frontend" {
   name        = "${var.PrefixCode}-targetgroup-ecs"
   port        = 5000
@@ -30,8 +31,8 @@ resource "aws_lb_target_group" "frontend" {
 }
 
 # Application Load Balancer
-# checkov:skip=CKV_AWS_150:Deletion protection disabled for workshop environment to allow terraform destroy and automated cleanup. In production, enable deletion protection for safety.
-# checkov:skip=CKV2_AWS_20:HTTP to HTTPS redirect not applicable in workshop environment without SSL certificates. In production, always redirect HTTP to HTTPS.
+# checkov:skip=CKV2_AWS_20:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
+# checkov:skip=CKV2_AWS_28:WAF not implemented for development environment. Consider WAF for production.
 resource "aws_lb" "main" {
   name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
@@ -59,8 +60,8 @@ resource "aws_lb" "main" {
 }
 
 # Listener for HTTP traffic
-# checkov:skip=CKV_AWS_2:WARNING - HTTP used for workshop simplicity. In production, always use HTTPS with proper SSL certificates.
-# checkov:skip=CKV_AWS_103:TLS version not applicable for HTTP listener. In production, use HTTPS with TLS 1.2+.
+# checkov:skip=CKV_AWS_2:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
+# checkov:skip=CKV_AWS_103:TLS check not applicable - ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
 resource "aws_lb_listener" "frontend" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
