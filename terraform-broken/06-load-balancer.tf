@@ -32,14 +32,6 @@ resource "aws_lb_target_group" "frontend" {
 # Application Load Balancer
 # checkov:skip=CKV_AWS_150:Deletion protection disabled for workshop environment to allow terraform destroy and automated cleanup. In production, enable deletion protection for safety.
 # checkov:skip=CKV2_AWS_20:HTTP to HTTPS redirect not applicable in workshop environment without SSL certificates. In production, always redirect HTTP to HTTPS.
-
-resource "aws_lb" "main" {
-  name               = "${var.PrefixCode}-alb-ecs"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [data.aws_security_group.alb.id]
-  subnets            = data.aws_subnets.public.ids
-# Application Load Balancer
 resource "aws_lb" "main" {
   name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
@@ -48,27 +40,11 @@ resource "aws_lb" "main" {
   subnets            = data.aws_subnets.public.ids
 
   enable_deletion_protection = false
-
-  tags = {
-    Name         = "${var.PrefixCode}-alb-ecs"
-    resourcetype = "network"
-    codeblock    = "load-balancer"
-  }
-}
-
-# Listener for HTTP traffic
-resource "aws_lb_listener" "frontend" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  enable_deletion_protection = false
+  
+  # Security: Drop invalid HTTP headers to prevent request smuggling and injection attacks
   drop_invalid_header_fields = true
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.frontend.arn
-  }
 
+  # Enable access logging for monitoring and troubleshooting
   access_logs {
     bucket  = data.aws_s3_bucket.wildlife_images.bucket
     prefix  = "alb-access-logs"
@@ -79,23 +55,16 @@ resource "aws_lb_listener" "frontend" {
     Name         = "${var.PrefixCode}-alb-ecs"
     resourcetype = "network"
     codeblock    = "load-balancer"
-    Name         = "${var.PrefixCode}-alb-listener"
-    resourcetype = "network"
-    codeblock    = "load-balancer"
   }
 }
 
 # Listener for HTTP traffic
 # checkov:skip=CKV_AWS_2:WARNING - HTTP used for workshop simplicity. In production, always use HTTPS with proper SSL certificates.
+# checkov:skip=CKV_AWS_103:TLS version not applicable for HTTP listener. In production, use HTTPS with TLS 1.2+.
 resource "aws_lb_listener" "frontend" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
-# Output for accessing the application
-output "application_url" {
-  description = "URL to access the application"
-  value       = "http://${aws_lb.main.dns_name}/wildlife"
-}
 
   default_action {
     type             = "forward"
@@ -107,15 +76,6 @@ output "application_url" {
     resourcetype = "network"
     codeblock    = "load-balancer"
   }
-# Security Group Rule to allow public HTTP access to ALB
-resource "aws_security_group_rule" "alb_http_public" {
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = data.aws_security_group.alb.id
-  description       = "Allow HTTP access from anywhere"
 }
 
 # Output for accessing the application
