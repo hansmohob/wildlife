@@ -5,7 +5,7 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# checkov:skip=CKV_AWS_336:Some services require write access - Media service needs temp files for S3 uploads, DataDB service runs MongoDB requiring write access.
+# checkov:skip=CKV_AWS_336:Some services require write access - Media service needs temp files for S3 uploads, DataDB service runs MongoDB requiring write access. Frontend/Alerts services use readonly where possible.
 resource "aws_ecs_task_definition" "task" {
   family                   = var.family
   requires_compatibilities = var.requires_compatibilities
@@ -29,8 +29,8 @@ resource "aws_ecs_task_definition" "task" {
       dynamic "efs_volume_configuration" {
         for_each = volume.value.efs_volume_configuration != null ? [volume.value.efs_volume_configuration] : []
         content {
-          file_system_id = efs_volume_configuration.value.file_system_id
-          root_directory = efs_volume_configuration.value.root_directory
+          file_system_id     = efs_volume_configuration.value.file_system_id
+          root_directory     = efs_volume_configuration.value.root_directory
           transit_encryption = "ENABLED"
         }
       }
