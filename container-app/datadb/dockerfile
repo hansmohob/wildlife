@@ -5,3 +5,5 @@ FROM mongodb/mongodb-community-server:8.0-ubi8
 
 # MongoDB port
 EXPOSE 27017
+
+# checkov:skip=CKV_DOCKER_2:Health checks handled by ECS Service Connect and internal monitoring. Docker HEALTHCHECK adds image bloat without significant benefit in orchestrated environments.

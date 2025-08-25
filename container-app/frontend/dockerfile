@@ -22,3 +22,5 @@ EXPOSE 5000
 
 # Run the application
 CMD ["python", "app.py"]
+
+# checkov:skip=CKV_DOCKER_2:Health checks handled by ECS Service Connect and internal monitoring. Docker HEALTHCHECK adds image bloat without significant benefit in orchestrated environments.
