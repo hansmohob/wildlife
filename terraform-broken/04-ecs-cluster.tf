@@ -92,15 +92,6 @@ resource "aws_launch_template" "ecs" {
     }
   }
 
-  tag_specifications {
-    resource_type = "instance"
-    tags = {
-      Name         = "${var.PrefixCode}-ecs-instance"
-      resourcetype = "compute"
-      codeblock    = "ecs-cluster"
-    }
-  }
-
   tags = {
     Name         = "${var.PrefixCode}-ecs-launch-template"
     resourcetype = "compute"
