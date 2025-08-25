@@ -70,7 +70,6 @@ data "aws_s3_bucket" "wildlife_images" {
 data "aws_iam_instance_profile" "ecs" {
   name = "wildlife-iamprofile-ecs"
 }
-<<<<<<< HEAD
 
 data "aws_key_pair" "main" {
   key_name = "wildlife-ec2-keypair"
@@ -86,7 +85,6 @@ data "aws_iam_policy" "efs_policy" {
 data "aws_kms_key" "cmk" {
   key_id = "alias/wildlife-kms-cmk"
 }
-=======
 
 data "aws_key_pair" "main" {
   key_name = "wildlife-ec2-keypair"
@@ -99,4 +97,3 @@ data "aws_iam_policy" "s3_policy" {
 data "aws_iam_policy" "efs_policy" {
   name = "wildlife-iampolicy-efs"
 }
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9

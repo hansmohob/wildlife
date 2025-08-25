@@ -29,7 +29,6 @@ resource "aws_lb_target_group" "frontend" {
   }
 }
 
-<<<<<<< HEAD
 # Application Load Balancer
 # checkov:skip=CKV_AWS_150:Deletion protection disabled for workshop environment to allow terraform destroy and automated cleanup. In production, enable deletion protection for safety.
 resource "aws_lb" "main" {
@@ -38,7 +37,6 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [data.aws_security_group.alb.id]
   subnets            = data.aws_subnets.public.ids
-=======
 # Application Load Balancer
 resource "aws_lb" "main" {
   name               = "${var.PrefixCode}-alb-ecs"
@@ -61,17 +59,13 @@ resource "aws_lb_listener" "frontend" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
 
-<<<<<<< HEAD
   enable_deletion_protection = false
   drop_invalid_header_fields = true
-=======
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.frontend.arn
   }
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
 
 <<<<<<< HEAD
   access_logs {

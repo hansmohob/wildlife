@@ -76,7 +76,6 @@ resource "aws_launch_template" "ecs" {
 
   user_data = base64encode(file("${path.module}/../workshop/ecs-cluster-bootstrap.sh"))
 
-<<<<<<< HEAD
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -93,7 +92,6 @@ resource "aws_launch_template" "ecs" {
     }
   }
 
-=======
   tag_specifications {
     resource_type = "instance"
     tags = {
@@ -103,7 +101,6 @@ resource "aws_launch_template" "ecs" {
     }
   }
 
->>>>>>> a408d3cff0c2ac8f476bcae75055f6655fff6ed9
   tags = {
     Name         = "${var.PrefixCode}-ecs-launch-template"
     resourcetype = "compute"
