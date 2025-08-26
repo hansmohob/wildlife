@@ -1,8 +1,8 @@
 # Application Load Balancer for Application traffic
 
 # Target Group for Frontend Service
-# checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
 resource "aws_lb_target_group" "frontend" {
+  # checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
   name        = "${var.PrefixCode}-targetgroup-ecs"
   port        = 5000
   protocol    = "HTTP"
@@ -31,15 +31,16 @@ resource "aws_lb_target_group" "frontend" {
 }
 
 # Application Load Balancer
-# checkov:skip=CKV2_AWS_20:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
-# checkov:skip=CKV2_AWS_28:WAF not implemented for development environment. Consider WAF for production.
 resource "aws_lb" "main" {
+  # checkov:skip=CKV2_AWS_28:WAF not implemented for development environment. Consider WAF for production.
+  # checkov:skip=CKV2_AWS_20:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
   name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [data.aws_security_group.alb.id]
   subnets            = data.aws_subnets.public.ids
 
+  # checkov:skip=CKV_AWS_150:Deletion protection disabled for development environment to allow easy cleanup
   enable_deletion_protection = false
   
   # Security: Drop invalid HTTP headers to prevent request smuggling and injection attacks
@@ -60,9 +61,9 @@ resource "aws_lb" "main" {
 }
 
 # Listener for HTTP traffic
-# checkov:skip=CKV_AWS_2:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
-# checkov:skip=CKV_AWS_103:TLS check not applicable - ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
 resource "aws_lb_listener" "frontend" {
+  # checkov:skip=CKV_AWS_103:TLS check not applicable - ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
+  # checkov:skip=CKV_AWS_2:ALB uses HTTP for workshop environment to avoid certificate management complexity
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
@@ -86,8 +87,8 @@ output "application_url" {
 }
 
 # Security Group Rule to allow public HTTP access to ALB
-# checkov:skip=CKV_AWS_260:Public HTTP access required for workshop ALB. In production, consider restricting to specific IP ranges or using CloudFront.
 resource "aws_security_group_rule" "alb_http_public" {
+  # checkov:skip=CKV_AWS_260:Public HTTP access required for workshop ALB. In production, consider restricting to specific IP ranges or using CloudFront.
   type              = "ingress"
   from_port         = 80
   to_port           = 80

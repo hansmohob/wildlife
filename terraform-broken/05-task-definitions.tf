@@ -17,7 +17,7 @@ module "task_frontend" {
   port_name      = "frontend-http"
   app_protocol   = "http"
   
-  readonly_root_filesystem = false
+  readonly_root_filesystem = true
   log_group               = "/aws/ecs/${var.PrefixCode}-frontend"
 
   volumes = [
@@ -91,6 +91,7 @@ module "task_media" {
   container_port = 5000
   port_name      = "media-http"
   
+  # checkov:skip=CKV_AWS_336:Media service needs write access for temp files during S3 uploads
   readonly_root_filesystem = false
   log_group               = "/aws/ecs/${var.PrefixCode}-media"
 
@@ -124,6 +125,7 @@ module "task_datadb" {
   port_name      = "data-tcp"
   port_protocol  = "tcp"
   
+  # checkov:skip=CKV_AWS_336:DataDB service runs MongoDB which requires write access to filesystem
   readonly_root_filesystem = false
   user                    = "0:0"  # Run as root for MongoDB
   log_group               = "/aws/ecs/${var.PrefixCode}-datadb"
