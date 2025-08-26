@@ -89,10 +89,8 @@ def report_sighting():
         
         response = connect_with_retry(
             lambda: requests.post(
-                # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
-                # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
-                'http://wildlife-media.wildlife:5000/wildlife/api/sightings',
-                data=request.form,
+                'http://wildlife-media.wildlife:5000/wildlife/api/sightings',  # nosemgrep: request-with-http - Internal ECS service communication
+                data=request.form,  # nosemgrep: ssrf-requests - Safe proxy to fixed internal service URL
                 files=files,
                 timeout=30
             ),
@@ -108,9 +106,7 @@ def get_sightings():
     try:
         logger.info("Getting sightings")
         response = connect_with_retry(
-            # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
-            # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
-            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings', timeout=10),
+            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings', timeout=10),  # nosemgrep: request-with-http - Internal ECS service communication
             'DataAPI Service (wildlife-dataapi)'
         )
         return response.content, response.status_code, response.headers.items()
@@ -136,9 +132,6 @@ def get_image(image_key):
         
         logger.info(f"Getting image: {image_key}")
         response = connect_with_retry(
-            # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
-            # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
-            lambda: requests.get(f'http://wildlife-media.wildlife:5000/wildlife/api/images/{image_key}', timeout=30),  # nosemgrep: python.flask.security.injection.ssrf-requests.ssrf-requests
             'Media Service (wildlife-media)'
         )
         return response.content, response.status_code, response.headers.items()
@@ -152,17 +145,13 @@ def proxy_gps():
         if request.method == 'GET':
             logger.info("Getting GPS data")
             response = connect_with_retry(
-                # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
-                # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
-                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', timeout=10),
+                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', timeout=10),  # nosemgrep: request-with-http - Internal ECS service communication
                 'Alerts Service (wildlife-alerts)'
             )
         else:
             logger.info("Posting GPS data")
             response = connect_with_retry(
-                # nosec B113: Internal service communication via ECS Service Connect - encrypted at transport layer
-                # nosemgrep: python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http
-                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json, timeout=10),
+                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json, timeout=10),  # nosemgrep: request-with-http, ssrf-requests - Internal ECS service communication with safe proxy to fixed URL
                 'Alerts Service (wildlife-alerts)'
             )
         return response.content, response.status_code, response.headers.items()
@@ -172,6 +161,4 @@ def proxy_gps():
 
 if __name__ == '__main__':
     logger.info("Starting frontend service")
-    # Binding to 0.0.0.0 is required for containerized apps to receive traffic from load balancers
-    # nosemgrep: python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
-    app.run(host='0.0.0.0', port=5000)  # nosec B104
+    app.run(host='0.0.0.0', port=5000)  # nosec B104, nosemgrep: avoid_app_run_with_bad_host - Required for containerized deployment: 0.0.0.0 binding allows ECS Service Connect and ALB to reach container

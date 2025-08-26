@@ -200,6 +200,4 @@ def data_get_sighting(sighting_id):
 
 if __name__ == '__main__':
     print("Starting wildlife application with integrated data API on port 5000")
-    # Binding to 0.0.0.0 is required for EC2 apps to receive traffic from ALB through CloudFront
-    # semgrep:ignore python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
-    app.run(host='0.0.0.0', port=5000, debug=False)  # nosec B104
+    app.run(host='0.0.0.0', port=5000, debug=False)  # nosec B104, nosemgrep: avoid_app_run_with_bad_host - Required for EC2 deployment: 0.0.0.0 binding allows ALB to reach application

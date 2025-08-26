@@ -80,6 +80,4 @@ def get_gps_data():
 
 if __name__ == '__main__':
     logger.info("Starting alerts service")
-    # Binding to 0.0.0.0 is required for containerized apps to receive traffic from ECS Service Connect
-    # semgrep:ignore python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
-    app.run(host='0.0.0.0', port=5000)  # nosec B104
+    app.run(host='0.0.0.0', port=5000)  # nosec B104, nosemgrep: avoid_app_run_with_bad_host - Required for containerized deployment: 0.0.0.0 binding allows ECS Service Connect and ALB to reach container
