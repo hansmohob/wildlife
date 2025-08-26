@@ -1,5 +1,5 @@
 # Security scan outputs
-.ash/
+#.ash/
 *.sarif
 
 # Terraform files

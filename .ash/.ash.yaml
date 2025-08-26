@@ -161,6 +161,22 @@ global_settings:
       path: 'workshop/AWS102.yml'
       line_range: '2321'
       reason: 'False positive: IAM policy action "secretsmanager:GetRandomPassword" for legitimate password generation in secret rotation'
+    # ASH config file contains suppression reasons that mention "secret" keyword
+    - rule_id: 'SECRET-KEYWORD'
+      path: '.ash/.ash.yaml'
+      line_range: '103'
+      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
+    
+    - rule_id: 'SECRET-KEYWORD'
+      path: '.ash/.ash.yaml'
+      line_range: '108'
+      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
+    
+    - rule_id: 'SECRET-KEYWORD'
+      path: '.ash/.ash.yaml'
+      line_range: '163'
+      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
+
 fail_on_findings: true
 ash_plugin_modules: []
 external_reports_to_include: []
