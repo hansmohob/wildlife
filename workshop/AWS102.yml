@@ -1481,6 +1481,12 @@ Resources:
                 Resource: 
                   - !Sub arn:${AWS::Partition}:s3:::${PrefixCode}-*
                   - !Sub arn:${AWS::Partition}:s3:::${PrefixCode}-*/*
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}/*
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketartifact}
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketartifact}/*
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
+                  - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
         - PolicyName: !Sub ${PrefixCode}-iampolicy-terraform-cloudfront
           PolicyDocument:
             Version: 2012-10-17
@@ -1532,6 +1538,10 @@ Resources:
                   - ec2:DeleteNetworkInterface
                   - ec2:CreateNetworkInterface
                 Resource: "*"
+      ManagedPolicyArns:
+        - !Ref iampolicymanagedcontainer
+        - !Ref iampolicymanagedinfrastructure
+        - !Ref iampolicymanagedservices
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-iamrole-developer
@@ -3118,12 +3128,12 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt eventbridgerulegpswildlife.Arn
-  iamrolepolicyworkshopdeveloper:
-    Type: AWS::IAM::Policy
+  # Container Services Policy (ECS, ECR, Service Discovery)
+  iampolicymanagedcontainer:
+    Type: AWS::IAM::ManagedPolicy
     Properties:
-      PolicyName: !Sub ${PrefixCode}-iampolicy-workshopdeveloper
-      Roles:
-        - !Ref iamroledeveloper
+      ManagedPolicyName: !Sub ${PrefixCode}-policy-container
+      Description: Container services permissions (ECS, ECR, Service Discovery)
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -3197,6 +3207,30 @@ Resources:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/wildlife-*:*"
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*"
           
+          # Service Discovery
+          - Sid: ServiceDiscovery
+            Effect: Allow
+            Action:
+              - servicediscovery:CreateService
+              - servicediscovery:DeleteService
+              - servicediscovery:GetService
+              - servicediscovery:ListServices
+              - servicediscovery:UpdateService
+              - servicediscovery:CreateNamespace
+              - servicediscovery:DeleteNamespace
+              - servicediscovery:GetNamespace
+              - servicediscovery:ListNamespaces
+            Resource: "*"
+
+  # Infrastructure Policy (EC2, EFS, Auto Scaling, ELB)
+  iampolicymanagedinfrastructure:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PrefixCode}-policy-infrastructure
+      Description: Infrastructure permissions (EC2, EFS, Auto Scaling, ELB)
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
           # EC2 - Infrastructure Management
           - Sid: EC2VPCEndpoints
             Effect: Allow
@@ -3340,6 +3374,30 @@ Resources:
               - efs:ModifyMountTargetSecurityGroups
             Resource:
               - !Sub "arn:aws:efs:${AWS::Region}:${AWS::AccountId}:file-system/*"
+
+  # Support Services Policy (Lambda, IAM, CloudWatch, SSM, S3)
+  iampolicymanagedservices:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PrefixCode}-policy-services
+      Description: Support services permissions (Lambda, IAM, CloudWatch, SSM, S3)
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          # S3 Git Bucket Access for environment variable replacement
+          - Sid: S3GitBucketAccess
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - s3:ListObjectsV2
+              - s3:GetObjectVersion
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
+              - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}/*
           
           # Lambda - Function Configuration
           - Sid: LambdaFunctionConfiguration
@@ -3395,21 +3453,6 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}::parameter/aws/service/ecs/optimized-ami/*"
-          
-          # Service Discovery
-          - Sid: ServiceDiscovery
-            Effect: Allow
-            Action:
-              - servicediscovery:CreateService
-              - servicediscovery:DeleteService
-              - servicediscovery:GetService
-              - servicediscovery:ListServices
-              - servicediscovery:UpdateService
-              - servicediscovery:CreateNamespace
-              - servicediscovery:DeleteNamespace
-              - servicediscovery:GetNamespace
-              - servicediscovery:ListNamespaces
-            Resource: "*"
 Outputs:
   01CodeServerURL:
     Description: URL to access code-server through CloudFront. Open in a separate tab and then return to collect password below!

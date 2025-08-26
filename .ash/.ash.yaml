@@ -13,7 +13,6 @@ global_settings:
       path: 'terraform-dev/terraform.tfstate*'
       reason: 'False positive: Terraform state files contain AWS resource IDs and ARNs, not actual secrets'
     
-    # Additional terraform state file secret types
     - rule_id: 'SECRET-KEYWORD'
       path: 'terraform-dev/terraform.tfstate*'
       reason: 'False positive: Terraform state files contain AWS resource IDs and ARNs, not actual secrets'
