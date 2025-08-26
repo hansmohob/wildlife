@@ -29,19 +29,7 @@ global_settings:
     
     # Checkov CKV_AWS_336 false positives - these services have readonly_root_filesystem = true but still fail
     - rule_id: 'CKV_AWS_336'
-      path: 'terraform-dev/05-task-definitions.tf'
-      line_range: '40-57'
-      reason: 'False positive: DataAPI service has readonly_root_filesystem = true but Checkov still flags it'
-    
-    - rule_id: 'CKV_AWS_336'
-      path: 'terraform-dev/05-task-definitions.tf'
-      line_range: '60-77'
-      reason: 'False positive: Alerts service has readonly_root_filesystem = true but Checkov still flags it'
-    
-    # Additional CKV_AWS_336 suppressions for module definition file (ASH reports them here)
-    - rule_id: 'CKV_AWS_336'
       path: 'terraform-dev/modules/ecs_task_definition/main.tf'
-      line_range: '9-117'
       reason: 'False positive: ECS task definition module - alerts and dataapi services have readonly_root_filesystem = true but Checkov still flags them'
     
     # CKV_SECRET_6 false positives in workshop CloudFormation template
@@ -161,22 +149,6 @@ global_settings:
       path: 'workshop/AWS102.yml'
       line_range: '2321'
       reason: 'False positive: IAM policy action "secretsmanager:GetRandomPassword" for legitimate password generation in secret rotation'
-    # ASH config file contains suppression reasons that mention "secret" keyword
-    - rule_id: 'SECRET-KEYWORD'
-      path: '.ash/.ash.yaml'
-      line_range: '103'
-      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
-    
-    - rule_id: 'SECRET-KEYWORD'
-      path: '.ash/.ash.yaml'
-      line_range: '108'
-      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
-    
-    - rule_id: 'SECRET-KEYWORD'
-      path: '.ash/.ash.yaml'
-      line_range: '163'
-      reason: 'False positive: ASH suppression reason text mentioning "secret" in context of explaining false positives'
-
 fail_on_findings: true
 ash_plugin_modules: []
 external_reports_to_include: []

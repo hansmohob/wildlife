@@ -394,7 +394,7 @@ perl -i -pe "BEGIN{undef $/;}
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
         -name "workshop-helper.sh" -o \
-        -name "terraform.tfvars")'
+        -name "terraform.tfvars")
 
 su - ec2-user -c "cd /home/ec2-user/workspace/my-workspace && git add . && git commit -m \"Update env\" && git push origin main"
 ' "Failed to replace environment variables or commit changes"
