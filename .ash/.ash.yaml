@@ -20,6 +20,22 @@ global_settings:
     - rule_id: 'SECRET-AWS-ACCESS-KEY-ID'
       path: 'terraform-dev/terraform.tfstate*'
       reason: 'False positive: Terraform state files contain AWS resource IDs and ARNs, not actual secrets'
+
+    # AWS resource identifiers and placeholders detected as high entropy strings
+    - rule_id: 'SECRET-BASE64-HIGH-ENTROPY-STRING'
+      path: 'container-app/media/task_definition_media_v1.json'
+      line_range: '34'
+      reason: 'False positive: Contains placeholder string "REPLACE_S3_BUCKET_WILDLIFE", not a secret'
+    
+    - rule_id: 'SECRET-BASE64-HIGH-ENTROPY-STRING'
+      path: 'terraform-dev/terraform.tfvars'
+      line_range: '6'
+      reason: 'False positive: Contains placeholder string "REPLACE_S3_BUCKET_WILDLIFE", not secret'
+    
+    - rule_id: 'SECRET-BASE64-HIGH-ENTROPY-STRING'
+      path: 'terraform-live/versions.tf'
+      line_range: '10'
+      reason: 'False positive: Contains S3 bucket name for Terraform state backend, not a secret'
     
     # HTML templates contain SHA384 integrity hashes for CDN security
     - rule_id: 'SECRET-BASE64-HIGH-ENTROPY-STRING'
