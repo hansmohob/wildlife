@@ -101,14 +101,14 @@ resource "aws_launch_template" "ecs" {
 
 # Auto Scaling Group for EC2 instances
 resource "aws_autoscaling_group" "ecs" {
-  name                = "${var.PrefixCode}-asg-ecs"
-  vpc_zone_identifier = data.aws_subnets.private.ids
-  target_group_arns   = []
-  health_check_type   = "EC2"
+  name                      = "${var.PrefixCode}-asg-ecs"
+  vpc_zone_identifier       = data.aws_subnets.private.ids
+  target_group_arns         = []
+  health_check_type         = "EC2"
   health_check_grace_period = 300
 
   min_size         = 2
-  max_size         = 4  # Updated for capacity scaling
+  max_size         = 2 # Updated for capacity scaling
   desired_capacity = 2
 
   launch_template {

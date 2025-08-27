@@ -41,7 +41,7 @@ def connect_with_retry(connect_func, service_name, max_attempts=60, delay=30):
                 logger.info(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
             else:
-                logger.error(f"Failed to connect to {service_name} after {max_attempts} attempts (30 minutes)")
+                logger.warning(f"Failed to connect to {service_name} after {max_attempts} attempts (30 minutes)")
                 raise
 
 # Initialize MongoDB client

@@ -12,13 +12,12 @@ module "service_datadb" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
-  service_connect_port_name     = "data-tcp"
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
+  service_connect_port_name      = "data-tcp"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-datadb"
-  service_connect_port          = 27017
+  service_connect_port           = 27017
 
   load_balancer_enabled = false
-
 
   enable_execute_command = false
 }
@@ -37,10 +36,10 @@ module "service_dataapi" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
-  service_connect_port_name     = "data-http"
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
+  service_connect_port_name      = "data-http"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-dataapi"
-  service_connect_port          = 5000
+  service_connect_port           = 5000
 
   load_balancer_enabled = false
 
@@ -64,10 +63,10 @@ module "service_alerts" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
-  service_connect_port_name     = "alerts-http"
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
+  service_connect_port_name      = "alerts-http"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-alerts"
-  service_connect_port          = 5000
+  service_connect_port           = 5000
 
   load_balancer_enabled = false
 
@@ -90,8 +89,8 @@ module "service_media" {
   capacity_provider_strategy = [
     {
       capacity_provider = aws_ecs_capacity_provider.ec2.name
-      weight           = 1
-      base             = 0
+      weight            = 1
+      base              = 0
     }
   ]
 
@@ -99,10 +98,10 @@ module "service_media" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
-  service_connect_port_name     = "media-http"
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
+  service_connect_port_name      = "media-http"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-media"
-  service_connect_port          = 5000
+  service_connect_port           = 5000
 
   load_balancer_enabled = false
 
@@ -125,10 +124,10 @@ module "service_frontend" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn = aws_service_discovery_http_namespace.main.arn
-  service_connect_port_name     = "frontend-http"
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
+  service_connect_port_name      = "frontend-http"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-frontend"
-  service_connect_port          = 5000
+  service_connect_port           = 5000
 
   load_balancer_enabled = true
   target_group_arn      = aws_lb_target_group.frontend.arn

@@ -1,4 +1,3 @@
-# ECR Repository Module
 # Creates ECR repository with lifecycle policy and encryption
 
 # Get default KMS key for ECR encryption
@@ -37,10 +36,10 @@ resource "aws_ecr_lifecycle_policy" "policy" {
         rulePriority = 1
         description  = "Delete untagged images after one day"
         selection = {
-          tagStatus     = "untagged"
-          countType     = "sinceImagePushed"
-          countUnit     = "days"
-          countNumber   = 1
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
         }
         action = {
           type = "expire"

@@ -1,4 +1,3 @@
-# ECS Task Definition Module
 # Creates ECS task definition with container configuration and logging
 
 # Get current AWS account ID and region
@@ -6,13 +5,14 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 resource "aws_ecs_task_definition" "task" {
+# checkov:skip=CKV_AWS_336: Some services require write access - Media service needs temp files for S3 uploads, DataDB service runs MongoDB requiring write access. Frontend/Alerts services use readonly where possible.
   family                   = var.family
   requires_compatibilities = var.requires_compatibilities
   cpu                      = var.cpu
   memory                   = var.memory
   network_mode             = "awsvpc"
   execution_role_arn       = var.execution_role_arn
-  task_role_arn           = var.task_role_arn
+  task_role_arn            = var.task_role_arn
 
   runtime_platform {
     operating_system_family = "LINUX"
@@ -24,7 +24,7 @@ resource "aws_ecs_task_definition" "task" {
     for_each = var.volumes
     content {
       name = volume.value.name
-      
+
       dynamic "efs_volume_configuration" {
         for_each = volume.value.efs_volume_configuration != null ? [volume.value.efs_volume_configuration] : []
         content {
@@ -38,12 +38,12 @@ resource "aws_ecs_task_definition" "task" {
 
   container_definitions = jsonencode([
     {
-      name      = var.container_name
-      image     = var.container_image
-      essential = true
+      name                   = var.container_name
+      image                  = var.container_image
+      essential              = true
       readonlyRootFilesystem = var.readonly_root_filesystem
-      user      = var.user
-      
+      user                   = var.user
+
       portMappings = [
         {
           containerPort = var.container_port

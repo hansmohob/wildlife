@@ -2,9 +2,9 @@
 
 # Target Group for Frontend Service
 resource "aws_lb_target_group" "frontend" {
-  # checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
   name        = "${var.PrefixCode}-targetgroup-ecs"
   port        = 5000
+  # checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.main.id
   target_type = "ip"
@@ -31,19 +31,19 @@ resource "aws_lb_target_group" "frontend" {
 }
 
 # Application Load Balancer
+# nosemgrep: missing-aws-lb-deletion-protection - Deletion protection disabled for development environment to allow easy cleanup
 resource "aws_lb" "main" {
   # checkov:skip=CKV2_AWS_28:WAF not implemented for development environment. Consider WAF for production.
   # checkov:skip=CKV2_AWS_20:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
-  name               = "${var.PrefixCode}-alb-ecs"
+  # checkov:skip=CKV_AWS_150:Deletion protection disabled for development environment to allow easy cleanup
   internal           = false
   load_balancer_type = "application"
   security_groups    = [data.aws_security_group.alb.id]
   subnets            = data.aws_subnets.public.ids
-
-  # checkov:skip=CKV_AWS_150:Deletion protection disabled for development environment to allow easy cleanup
+  
+  # nosemgrep: missing-aws-lb-deletion-protection - Deletion protection disabled for development environment to allow easy cleanup
   enable_deletion_protection = false
   
-  # Security: Drop invalid HTTP headers to prevent request smuggling and injection attacks
   drop_invalid_header_fields = true
 
   # Enable access logging for monitoring and troubleshooting
@@ -66,6 +66,7 @@ resource "aws_lb_listener" "frontend" {
   # checkov:skip=CKV_AWS_2:ALB uses HTTP for workshop environment to avoid certificate management complexity
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
+  # nosemgrep: insecure-load-balancer-tls-version - HTTP listener for workshop environment, TLS not applicable
   protocol          = "HTTP"
 
   default_action {
@@ -87,12 +88,14 @@ output "application_url" {
 }
 
 # Security Group Rule to allow public HTTP access to ALB
+# nosemgrep: aws-ec2-security-group-allows-public-ingress - Public HTTP access required for workshop ALB
 resource "aws_security_group_rule" "alb_http_public" {
   # checkov:skip=CKV_AWS_260:Public HTTP access required for workshop ALB. In production, consider restricting to specific IP ranges or using CloudFront.
   type              = "ingress"
-  from_port         = 80
+  from_port         = 80 
   to_port           = 80
   protocol          = "tcp"
+  # nosemgrep: aws-ec2-security-group-allows-public-ingress - Public HTTP access required for workshop ALB
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = data.aws_security_group.alb.id
   description       = "Allow HTTP access from anywhere"

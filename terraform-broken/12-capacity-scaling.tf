@@ -24,13 +24,13 @@ resource "aws_appautoscaling_policy" "media_cpu" {
   service_namespace  = aws_appautoscaling_target.media.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value = 30.0  # Lower than frontend (70%) to trigger capacity scaling first
+    target_value = 30.0 # Lower than frontend (70%) to trigger capacity scaling first
 
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    scale_out_cooldown = 300  # 5 minutes
-    scale_in_cooldown  = 300  # 5 minutes
+    scale_out_cooldown = 300
+    scale_in_cooldown  = 300
   }
 }

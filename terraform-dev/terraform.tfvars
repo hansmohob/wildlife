@@ -1,11 +1,7 @@
-# Terraform variables file - only the variables actually used by CodeBuild
-# CodeBuild passes: -var="PrefixCode=${PrefixCode}" -var="Region=${AWS::Region}"
-
 # Core Infrastructure Parameters (passed by CodeBuild)
-PrefixCode = "wildlife"      # Use same prefix as console section
-Region     = "us-west-2"     # Corrected region
+PrefixCode = "wildlife"
+Region     = "us-west-2"
 
-# Wildlife Application Specific
-# Actual S3 bucket name from CloudFormation stack
+# Wildlife Application Specific (replaced by dev server userdata)
 wildlife_s3_bucket_name = "REPLACE_S3_BUCKET_WILDLIFE"
-logs_s3_bucket_name = "REPLACE_S3_BUCKET_LOGS"
+logs_s3_bucket_name     = "REPLACE_S3_BUCKET_LOGS"

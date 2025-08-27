@@ -37,6 +37,9 @@ def connect_with_retry(connect_func, service_name, max_attempts=60, delay=30):
     for attempt in range(max_attempts):
         try:
             result = connect_func()
+            # Check for HTTP errors and raise exception if status indicates failure
+            if hasattr(result, 'raise_for_status'):
+                result.raise_for_status()
             logger.info(f"Successfully connected to {service_name} on attempt {attempt+1}")
             return result
         except Exception as e:
@@ -45,7 +48,7 @@ def connect_with_retry(connect_func, service_name, max_attempts=60, delay=30):
                 logger.info(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
             else:
-                logger.error(f"Failed to connect to {service_name} after {max_attempts} attempts (30 minutes)")
+                logger.warning(f"Failed to connect to {service_name} after {max_attempts} attempts (30 minutes)")
                 raise
 
 CACHE_HEADERS = {
@@ -88,8 +91,8 @@ def report_sighting():
             files = {'image': request.files['image']}
         
         response = connect_with_retry(
-            lambda: requests.post(
-                'http://wildlife-media.wildlife:5000/wildlife/api/sightings',  # nosemgrep: request-with-http - Internal ECS service communication
+            lambda: requests.post(  # nosemgrep: use-raise-for-status - Error handling already done by connect_with_retry function
+                'http://wildlife-media.wildlife:5000/wildlife/api/sightings',  # nosemgrep: request-with-http, use-raise-for-status - Internal service communication, error handling done by connect_with_retry
                 data=request.form,  # nosemgrep: ssrf-requests - Safe proxy to fixed internal service URL
                 files=files,
                 timeout=30
@@ -106,7 +109,7 @@ def get_sightings():
     try:
         logger.info("Getting sightings")
         response = connect_with_retry(
-            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings', timeout=10),  # nosemgrep: request-with-http - Internal ECS service communication
+            lambda: requests.get('http://wildlife-dataapi.wildlife:5000/wildlife/api/sightings', timeout=10),  # nosemgrep: request-with-http, use-raise-for-status - Internal service communication, error handling done by connect_with_retry
             'DataAPI Service (wildlife-dataapi)'
         )
         return response.content, response.status_code, response.headers.items()
@@ -145,13 +148,13 @@ def proxy_gps():
         if request.method == 'GET':
             logger.info("Getting GPS data")
             response = connect_with_retry(
-                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', timeout=10),  # nosemgrep: request-with-http - Internal ECS service communication
+                lambda: requests.get('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', timeout=10),  # nosemgrep: request-with-http, use-raise-for-status - Internal service communication, error handling done by connect_with_retry
                 'Alerts Service (wildlife-alerts)'
             )
         else:
             logger.info("Posting GPS data")
             response = connect_with_retry(
-                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json, timeout=10),  # nosemgrep: request-with-http, ssrf-requests - Internal ECS service communication with safe proxy to fixed URL
+                lambda: requests.post('http://wildlife-alerts.wildlife:5000/wildlife/api/gps', json=request.json, timeout=10),  # nosemgrep: request-with-http, ssrf-requests, use-raise-for-status - Internal service communication, error handling done by connect_with_retry
                 'Alerts Service (wildlife-alerts)'
             )
         return response.content, response.status_code, response.headers.items()

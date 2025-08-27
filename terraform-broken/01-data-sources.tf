@@ -78,6 +78,7 @@ data "aws_iam_policy" "s3_policy" {
 data "aws_iam_policy" "efs_policy" {
   name = "wildlife-iampolicy-efs"
 }
+
 data "aws_kms_key" "cmk" {
   key_id = "alias/wildlife-kms-cmk"
 }

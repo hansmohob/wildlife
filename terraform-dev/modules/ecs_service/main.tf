@@ -1,4 +1,3 @@
-# ECS Service Module
 # Creates ECS service with load balancer integration and service connect
 
 # Get current AWS region
@@ -18,8 +17,8 @@ resource "aws_ecs_service" "service" {
     for_each = length(var.capacity_provider_strategy) > 0 ? var.capacity_provider_strategy : []
     content {
       capacity_provider = capacity_provider_strategy.value.capacity_provider
-      weight           = capacity_provider_strategy.value.weight
-      base             = capacity_provider_strategy.value.base
+      weight            = capacity_provider_strategy.value.weight
+      base              = capacity_provider_strategy.value.base
     }
   }
 
@@ -52,7 +51,7 @@ resource "aws_ecs_service" "service" {
       service {
         port_name      = var.service_connect_port_name
         discovery_name = var.service_connect_discovery_name
-        
+
         client_alias {
           port = var.service_connect_port
         }

@@ -84,6 +84,7 @@ EOF
 
 load_variables() {
     create_vars_file
+    # shellcheck source=/dev/null
     source "$VARS_FILE" 2>/dev/null || true
     
     # Load execution counts into EXECUTION_COUNT array
@@ -181,7 +182,8 @@ show_menu() {
         fi
         
         # Store mapping and display menu item with zero-padded numbers
-        local padded_number=$(printf "%02d" $counter)
+        local padded_number
+        padded_number=$(printf "%02d" "$counter")
         menu_numbers[$counter]="$func_name"
         
         # Add execution counter display
@@ -206,6 +208,7 @@ execute_command() {
     local choice=$1
     
     # Load the menu mapping
+    # shellcheck source=/dev/null
     source /tmp/menu_mapping.sh 2>/dev/null
     
     # Handle exit (accept both 0 and 00)
@@ -414,23 +417,23 @@ register_task_definitions() {
     
     # AWS CLI COMMANDS: Register ECS task definitions for each microservice
     aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/alerts/task_definition_alerts_v1.json \
+        --cli-input-json file://"$HOME"/workspace/my-workspace/container-app/alerts/task_definition_alerts_v1.json \
         --no-cli-pager
 
     aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/datadb/task_definition_datadb_v1.json \
+        --cli-input-json file://"$HOME"/workspace/my-workspace/container-app/datadb/task_definition_datadb_v1.json \
         --no-cli-pager
 
     aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v1.json \
+        --cli-input-json file://"$HOME"/workspace/my-workspace/container-app/dataapi/task_definition_dataapi_v1.json \
         --no-cli-pager
 
     aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/frontend/task_definition_frontend_v1.json \
+        --cli-input-json file://"$HOME"/workspace/my-workspace/container-app/frontend/task_definition_frontend_v1.json \
         --no-cli-pager
 
     aws ecs register-task-definition \
-        --cli-input-json file://$HOME/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
+        --cli-input-json file://"$HOME"/workspace/my-workspace/container-app/media/task_definition_media_v1.json \
         --no-cli-pager
         
     echo -e "${GREEN}✅ Task definitions registered${NC}"
@@ -467,7 +470,7 @@ create_load_balancer() {
         --query 'LoadBalancers[0].LoadBalancerArn')
 
     echo "Creating listener..."
-    aws elbv2 create-listener --load-balancer-arn $ALB_ARN --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=$TG_ARN --no-cli-pager
+    aws elbv2 create-listener --load-balancer-arn "$ALB_ARN" --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn="$TG_ARN" --no-cli-pager
     save_variable "ALB_ARN" "$ALB_ARN"
     save_variable "TG_ARN" "$TG_ARN"
     
@@ -531,7 +534,7 @@ create_ecs_services() {
         --service-name REPLACE_PREFIX_CODE-media-service \
         --task-definition REPLACE_PREFIX_CODE-media-task \
         --desired-count 2 \
-        --capacity-provider-strategy capacityProvider=$CAPACITY_PROVIDER,weight=1 \
+        --capacity-provider-strategy capacityProvider="$CAPACITY_PROVIDER",weight=1 \
         --network-configuration "awsvpcConfiguration={subnets=[REPLACE_PRIVATE_SUBNET_1,REPLACE_PRIVATE_SUBNET_2],securityGroups=[REPLACE_SECURITY_GROUP_APP],assignPublicIp=DISABLED}" \
         --service-connect-configuration "enabled=true,namespace=REPLACE_PREFIX_CODE,services=[{portName=media-http,discoveryName=REPLACE_PREFIX_CODE-media,clientAliases=[{port=5000}]}],logConfiguration={logDriver=awslogs,options={awslogs-group=/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app,awslogs-region=REPLACE_AWS_REGION,awslogs-stream-prefix=REPLACE_PREFIX_CODE}}" \
         --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
@@ -566,8 +569,8 @@ create_ecs_services() {
             service_num=$((i + 1))
             
             # Get running task count for this service
-            running_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services $service --query 'services[0].runningCount' --output text 2>/dev/null)
-            desired_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services $service --query 'services[0].desiredCount' --output text 2>/dev/null)
+            running_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services "$service" --query 'services[0].runningCount' --output text 2>/dev/null)
+            desired_tasks=$(aws ecs describe-services --cluster REPLACE_PREFIX_CODE-ecs --services "$service" --query 'services[0].desiredCount' --output text 2>/dev/null)
             
             if [ "$running_tasks" = "$desired_tasks" ] && [ "$running_tasks" != "0" ]; then
                 echo -e "${GREEN}✅ Service $service_num/$total_services: $service is running ($running_tasks/$desired_tasks tasks)${NC}"
@@ -578,7 +581,7 @@ create_ecs_services() {
         done
         
         # If all services are running, break the loop
-        if [ $running_count -eq $total_services ]; then
+        if [ $running_count -eq "$total_services" ]; then
             break
         fi
         
@@ -641,7 +644,7 @@ create_efs_storage() {
         --no-cli-pager
     
     EFS_ID=$(aws efs create-file-system \
-        --creation-token REPLACE_PREFIX_CODE-mongodb-$(date +%s) \
+        --creation-token "REPLACE_PREFIX_CODE-mongodb-$(date +%s)" \
         --performance-mode generalPurpose \
         --throughput-mode provisioned \
         --provisioned-throughput-in-mibps 100 \
@@ -651,26 +654,26 @@ create_efs_storage() {
         --output text)
     
     echo "Waiting for EFS to be available..."
-    until [ "$(aws efs describe-file-systems --file-system-id $EFS_ID --query 'FileSystems[0].LifeCycleState' --output text)" = "available" ]; do 
+    until [ "$(aws efs describe-file-systems --file-system-id "$EFS_ID" --query 'FileSystems[0].LifeCycleState' --output text)" = "available" ]; do 
         echo "EFS still creating, waiting..."
         sleep 10
     done
 
     echo "Creating mount targets..."   
     aws efs create-mount-target \
-        --file-system-id $EFS_ID \
+        --file-system-id "$EFS_ID" \
         --subnet-id REPLACE_PRIVATE_SUBNET_1 \
         --security-groups REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
     
     aws efs create-mount-target \
-        --file-system-id $EFS_ID \
+        --file-system-id "$EFS_ID" \
         --subnet-id REPLACE_PRIVATE_SUBNET_2 \
         --security-groups REPLACE_SECURITY_GROUP_APP \
         --no-cli-pager
 
     echo "Waiting for mount targets to be available..."
-    until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets[?LifeCycleState==`available`])' --output text)" = "2" ]; do 
+    until [ "$(aws efs describe-mount-targets --file-system-id "$EFS_ID" --query 'length(MountTargets[?LifeCycleState==`available`])' --output text)" = "2" ]; do 
         echo "Mount targets still creating, waiting..."
         sleep 10
     done
@@ -1025,19 +1028,19 @@ cleanup_load_balancer() {
     ALB_ARN=$(aws elbv2 describe-load-balancers --names REPLACE_PREFIX_CODE-alb-ecs --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null)
     if [ "$ALB_ARN" != "None" ] && [ "$ALB_ARN" != "" ]; then
         echo "Deleting listeners..."
-        LISTENER_ARNS=$(aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[].ListenerArn' --output text 2>/dev/null)
+        LISTENER_ARNS=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query 'Listeners[].ListenerArn' --output text 2>/dev/null)
         for LISTENER_ARN in $LISTENER_ARNS; do
-            aws elbv2 delete-listener --listener-arn $LISTENER_ARN --no-cli-pager
+            aws elbv2 delete-listener --listener-arn "$LISTENER_ARN" --no-cli-pager
         done
         
         echo "Deleting load balancer..."
-        aws elbv2 delete-load-balancer --load-balancer-arn $ALB_ARN --no-cli-pager
+        aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN" --no-cli-pager
     fi
 
     echo "Deleting target group..."
     TG_ARN=$(aws elbv2 describe-target-groups --names REPLACE_PREFIX_CODE-targetgroup-ecs --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null)
     if [ "$TG_ARN" != "None" ] && [ "$TG_ARN" != "" ]; then
-        aws elbv2 delete-target-group --target-group-arn $TG_ARN --no-cli-pager
+        aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --no-cli-pager
     fi
     
     save_variable "ALB_ARN" ""
@@ -1104,7 +1107,7 @@ cleanup_task_definitions() {
         echo "Deregistering $TASK_DEF..."
         REVISIONS=$(aws ecs list-task-definitions --family-prefix $TASK_DEF --query 'taskDefinitionArns[]' --output text 2>/dev/null)
         for REVISION in $REVISIONS; do
-            aws ecs deregister-task-definition --task-definition $REVISION --no-cli-pager
+            aws ecs deregister-task-definition --task-definition "$REVISION" --no-cli-pager
         done
     done
     echo -e "${GREEN}✅ Task Definitions deregistered${NC}"
@@ -1117,7 +1120,7 @@ cleanup_vpc_endpoints() {
     VPC_ENDPOINTS=$(aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=REPLACE_VPC_ID" "Name=service-name,Values=com.amazonaws.REPLACE_AWS_REGION.ecr.*" --query 'VpcEndpoints[].VpcEndpointId' --output text 2>/dev/null)
     for ENDPOINT_ID in $VPC_ENDPOINTS; do
         echo "Deleting VPC endpoint $ENDPOINT_ID..."
-        aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $ENDPOINT_ID --no-cli-pager
+        aws ec2 delete-vpc-endpoints --vpc-endpoint-ids "$ENDPOINT_ID" --no-cli-pager
     done
     echo -e "${GREEN}✅ VPC Endpoints deleted${NC}"
 }
@@ -1129,16 +1132,16 @@ cleanup_efs() {
     EFS_FILESYSTEMS=$(aws efs describe-file-systems --query 'FileSystems[?Tags[?Key==`Name` && contains(Value, `REPLACE_PREFIX_CODE-mongodb-efs`)]].FileSystemId' --output text 2>/dev/null)
     for EFS_ID in $EFS_FILESYSTEMS; do       
         echo "Deleting mount targets for $EFS_ID..."
-        MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'MountTargets[].MountTargetId' --output text 2>/dev/null)
+        MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id "$EFS_ID" --query 'MountTargets[].MountTargetId' --output text 2>/dev/null)
         for MT_ID in $MOUNT_TARGETS; do
-            aws efs delete-mount-target --mount-target-id $MT_ID --no-cli-pager 2>/dev/null
+            aws efs delete-mount-target --mount-target-id "$MT_ID" --no-cli-pager 2>/dev/null
         done
         
         echo "Waiting for mount targets to be deleted..."
-        until [ "$(aws efs describe-mount-targets --file-system-id $EFS_ID --query 'length(MountTargets)' --output text 2>/dev/null)" = "0" ]; do sleep 5; done
+        until [ "$(aws efs describe-mount-targets --file-system-id "$EFS_ID" --query 'length(MountTargets)' --output text 2>/dev/null)" = "0" ]; do sleep 5; done
         
         echo "Deleting file system $EFS_ID..."
-        aws efs delete-file-system --file-system-id $EFS_ID --no-cli-pager 2>/dev/null
+        aws efs delete-file-system --file-system-id "$EFS_ID" --no-cli-pager 2>/dev/null
     done
     
     # Reset task definition back to placeholders

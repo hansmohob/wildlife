@@ -29,8 +29,8 @@ variable "capacity_provider_strategy" {
   description = "Capacity provider strategy for EC2 launch type"
   type = list(object({
     capacity_provider = string
-    weight           = number
-    base             = optional(number)
+    weight            = number
+    base              = optional(number)
   }))
   default = []
 }

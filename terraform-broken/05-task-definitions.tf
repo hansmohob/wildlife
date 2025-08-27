@@ -9,16 +9,16 @@ module "task_frontend" {
   memory                   = "2048"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = data.aws_iam_role.ecs_task.arn
+  task_role_arn            = data.aws_iam_role.ecs_task.arn
 
-  container_name = "${var.PrefixCode}-frontend"
+  container_name  = "${var.PrefixCode}-frontend"
   container_image = "${module.ecr_frontend.repository_url}:latest"
-  container_port = 5000
-  port_name      = "frontend-http"
-  app_protocol   = "http"
-  
+  container_port  = 5000
+  port_name       = "frontend-http"
+  app_protocol    = "http"
+
   readonly_root_filesystem = true
-  log_group               = "/aws/ecs/${var.PrefixCode}-frontend"
+  log_group                = "/aws/ecs/${var.PrefixCode}-frontend"
 
   volumes = [
     {
@@ -44,15 +44,15 @@ module "task_dataapi" {
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = data.aws_iam_role.ecs_task.arn
+  task_role_arn            = data.aws_iam_role.ecs_task.arn
 
-  container_name = "${var.PrefixCode}-dataapi"
+  container_name  = "${var.PrefixCode}-dataapi"
   container_image = "${module.ecr_dataapi.repository_url}:latest"
-  container_port = 5000
-  port_name      = "data-http"
-  
+  container_port  = 5000
+  port_name       = "data-http"
+
   readonly_root_filesystem = true
-  log_group               = "/aws/ecs/${var.PrefixCode}-dataapi"
+  log_group                = "/aws/ecs/${var.PrefixCode}-dataapi"
 }
 
 # Alerts Task Definition
@@ -64,15 +64,15 @@ module "task_alerts" {
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = data.aws_iam_role.ecs_task.arn
+  task_role_arn            = data.aws_iam_role.ecs_task.arn
 
-  container_name = "${var.PrefixCode}-alerts"
+  container_name  = "${var.PrefixCode}-alerts"
   container_image = "${module.ecr_alerts.repository_url}:latest"
-  container_port = 5000
-  port_name      = "alerts-http"
-  
+  container_port  = 5000
+  port_name       = "alerts-http"
+
   readonly_root_filesystem = true
-  log_group               = "/aws/ecs/${var.PrefixCode}-alerts"
+  log_group                = "/aws/ecs/${var.PrefixCode}-alerts"
 }
 
 # Media Task Definition (EC2)
@@ -84,16 +84,16 @@ module "task_media" {
   memory                   = "1024"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = data.aws_iam_role.ecs_task.arn
+  task_role_arn            = data.aws_iam_role.ecs_task.arn
 
-  container_name = "${var.PrefixCode}-media"
+  container_name  = "${var.PrefixCode}-media"
   container_image = "${module.ecr_media.repository_url}:latest"
-  container_port = 5000
-  port_name      = "media-http"
-  
+  container_port  = 5000
+  port_name       = "media-http"
   # checkov:skip=CKV_AWS_336:Media service needs write access for temp files during S3 uploads
   readonly_root_filesystem = false
-  log_group               = "/aws/ecs/${var.PrefixCode}-media"
+
+  log_group = "/aws/ecs/${var.PrefixCode}-media"
 
   # Environment variables for S3 image upload
   environment_variables = [
@@ -117,18 +117,18 @@ module "task_datadb" {
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = data.aws_iam_role.ecs_task.arn
+  task_role_arn            = data.aws_iam_role.ecs_task.arn
 
-  container_name = "${var.PrefixCode}-datadb"
+  container_name  = "${var.PrefixCode}-datadb"
   container_image = "${module.ecr_datadb.repository_url}:latest"
-  container_port = 27017
-  port_name      = "data-tcp"
-  port_protocol  = "tcp"
-  
+  container_port  = 27017
+  port_name       = "data-tcp"
+  port_protocol   = "tcp"
+
   # checkov:skip=CKV_AWS_336:DataDB service runs MongoDB which requires write access to filesystem
   readonly_root_filesystem = false
-  user                    = "0:0"  # Run as root for MongoDB
-  log_group               = "/aws/ecs/${var.PrefixCode}-datadb"
+  user                     = "0:0" # Run as root for MongoDB
+  log_group                = "/aws/ecs/${var.PrefixCode}-datadb"
 
   # EFS volume for MongoDB data persistence
   volumes = [

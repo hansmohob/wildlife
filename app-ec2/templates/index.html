@@ -306,7 +306,7 @@
                     // If clicking on a sighting or GPS feature, show popup
                     const coordinates = feature.getGeometry().getCoordinates();
                     popup.setPosition(coordinates);
-                    popupElement.innerHTML = feature.get('popupContent'); // nosemgrep: insecure-document-method - Content is sanitized server-side and from trusted internal sources
+                    popupElement.textContent = feature.get('popupContent');
                 } else {
                     // If clicking on the map (not on a feature), update coordinates
                     const lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
@@ -404,26 +404,43 @@
                 }
 
                 const tbody = document.getElementById('sightingsList');
-                tbody.innerHTML = sightings.map(s => `  // nosemgrep: insecure-document-method - Data from trusted internal API, HTML escaped in template literals
-                    <tr>
-                        <td>
-                            ${s.image_url ? 
-                                `<img src="/wildlife/api/images/${s.image_url}"
-                                    class="img-thumbnail" 
-                                    style="max-height: 50px;"
-                                    data-bs-toggle="popover"
-                                    data-bs-trigger="hover"
-                                    data-bs-html="true"
-                                    data-bs-content="<img src='/wildlife/api/images/${s.image_url}' class='img-fluid' style='max-height: 300px;'>"
-                                    alt="Hover to enlarge">` : 
-                                'No image'}
-                        </td>
-                        <td>${s.species}</td>
-                        <td>${s.habitat}</td>
-                        <td>${s.count}</td>
-                        <td>${new Date(s.timestamp).toLocaleString()}</td>
-                    </tr>
-                `).join('');
+                tbody.textContent = '';
+                sightings.forEach(s => {
+                    const row = tbody.insertRow();
+                    
+                    // Image cell
+                    const imageCell = row.insertCell();
+                    if (s.image_url) {
+                        const img = document.createElement('img');
+                        img.src = `/wildlife/api/images/${s.image_url}`;
+                        img.className = 'img-thumbnail';
+                        img.style.maxHeight = '50px';
+                        img.setAttribute('data-bs-toggle', 'popover');
+                        img.setAttribute('data-bs-trigger', 'hover');
+                        img.setAttribute('data-bs-html', 'true');
+                        img.setAttribute('data-bs-content', `<img src='/wildlife/api/images/${s.image_url}' class='img-fluid' style='max-height: 300px;'>`);
+                        img.alt = 'Hover to enlarge';
+                        imageCell.appendChild(img);
+                    } else {
+                        imageCell.textContent = 'No image';
+                    }
+                    
+                    // Species cell
+                    const speciesCell = row.insertCell();
+                    speciesCell.textContent = s.species;
+                    
+                    // Habitat cell
+                    const habitatCell = row.insertCell();
+                    habitatCell.textContent = s.habitat;
+                    
+                    // Count cell
+                    const countCell = row.insertCell();
+                    countCell.textContent = s.count;
+                    
+                    // Timestamp cell
+                    const timestampCell = row.insertCell();
+                    timestampCell.textContent = new Date(s.timestamp).toLocaleString();
+                });
 
                 // Initialize popovers
                 const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
@@ -474,7 +491,8 @@
                 }
 
                 const tbody = document.getElementById('gpsList');
-                tbody.innerHTML = sortedGPSData.map(data => {  // nosemgrep: insecure-document-method - Data from trusted internal API, values are properly escaped
+                tbody.textContent = '';
+                sortedGPSData.forEach(data => {
                     const timestamp = new Date(data.timestamp);
                     const timeDiff = (new Date() - timestamp) / 1000 / 60; // minutes
                     let status;
@@ -491,27 +509,49 @@
                         statusClass = 'text-success';
                     }
 
-                    return `
-                        <tr>
-                            <td>${data.animal_id}</td>
-                            <td class="text-truncate" style="max-width: 150px;">${data.species}</td>
-                            <td>
-                                <div class="progress" style="height: 15px; margin: 0;">
-                                    <div class="progress-bar ${data.battery < 20 ? 'bg-danger' : 'bg-success'}" 
-                                        role="progressbar" 
-                                        style="width: ${data.battery}%" 
-                                        aria-valuenow="${data.battery}" 
-                                        aria-valuemin="0" 
-                                        aria-valuemax="100">
-                                        ${data.battery}%
-                                    </div>
-                                </div>
-                            </td>
-                            <td><span class="${statusClass}">${status}</span></td>
-                            <td data-sort="${timestamp.getTime()}">${timestamp.toISOString()}</td>
-                        </tr>
-                    `;
-                }).join('');
+                    const row = tbody.insertRow();
+                    
+                    // Animal ID cell
+                    const idCell = row.insertCell();
+                    idCell.textContent = data.animal_id;
+                    
+                    // Species cell
+                    const speciesCell = row.insertCell();
+                    speciesCell.textContent = data.species;
+                    speciesCell.className = 'text-truncate';
+                    speciesCell.style.maxWidth = '150px';
+                    
+                    // Battery cell
+                    const batteryCell = row.insertCell();
+                    const progressDiv = document.createElement('div');
+                    progressDiv.className = 'progress';
+                    progressDiv.style.height = '15px';
+                    progressDiv.style.margin = '0';
+                    
+                    const progressBar = document.createElement('div');
+                    progressBar.className = `progress-bar ${data.battery < 20 ? 'bg-danger' : 'bg-success'}`;
+                    progressBar.setAttribute('role', 'progressbar');
+                    progressBar.style.width = `${data.battery}%`;
+                    progressBar.setAttribute('aria-valuenow', data.battery);
+                    progressBar.setAttribute('aria-valuemin', '0');
+                    progressBar.setAttribute('aria-valuemax', '100');
+                    progressBar.textContent = `${data.battery}%`;
+                    
+                    progressDiv.appendChild(progressBar);
+                    batteryCell.appendChild(progressDiv);
+                    
+                    // Status cell
+                    const statusCell = row.insertCell();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = statusClass;
+                    statusSpan.textContent = status;
+                    statusCell.appendChild(statusSpan);
+                    
+                    // Timestamp cell
+                    const timestampCell = row.insertCell();
+                    timestampCell.textContent = timestamp.toISOString();
+                    timestampCell.setAttribute('data-sort', timestamp.getTime());
+                });
 
                 // Initialize DataTable with sorting on timestamp column
                 gpsDataTable = $('#gpsTable').DataTable({

@@ -30,7 +30,7 @@ resource "aws_appautoscaling_policy" "frontend_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    scale_out_cooldown = 300  # 5 minutes
-    scale_in_cooldown  = 300  # 5 minutes
+    scale_out_cooldown = 300
+    scale_in_cooldown  = 300
   }
 }

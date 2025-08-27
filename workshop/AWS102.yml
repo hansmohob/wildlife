@@ -317,8 +317,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
-          - id: W70
-            reason: "CloudFront uses TLS 1.2 by default with redirect-to-https ViewerProtocolPolicy. Explicit MinimumProtocolVersion not required for default TLS 1.2 behavior."
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
 
       cdk_nag:
         rules_to_suppress:
@@ -699,6 +699,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
           - id: CKV_AWS_131
             reason: "ALB uses HTTP for internal AWS traffic. Security handled by CloudFront HTTPS and origin verification. Consider end-to-end HTTPS if required."
       checkov:
@@ -799,6 +801,23 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W42
+            reason: "Security group allows all protocols (-1) for internal VPC communication. Scoped to VPC CIDR only, not internet-facing."
+          - id: W40
+            reason: "Egress rule allows all protocols within VPC for AWS service access. Scoped to VPC CIDR only, not internet-facing."
+          - id: W5
+            reason: "Development environment requires outbound access for package downloads and Git operations. Consider restricting in production."
+          - id: W9
+            reason: "Security group allows CloudFront prefix list which includes multiple /16 ranges. This is required for CloudFront origin access."
+      checkov:
+        skip:
+          - id: CKV_AWS_260
+            comment: "Security group allows CloudFront prefix list access which is required for origin verification. More restrictive than 0.0.0.0/0."
   cloudfrontcachepolcodeserver:
     Type: AWS::CloudFront::CachePolicy
     Properties:
@@ -884,6 +903,10 @@ Resources:
         - Key: environment
           Value: !Sub ${EnvironmentTag}
     Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: "CloudFront uses TLS 1.2 by default with redirect-to-https ViewerProtocolPolicy. Explicit MinimumProtocolVersion not required for default TLS 1.2 behavior."
       cdk_nag:
         rules_to_suppress:
           - id: AwsSolutions-CFR4
@@ -898,6 +921,8 @@ Resources:
             reason: "Security handled by CloudFront origin header, IP restrictions and ALB rules. WAF needs us-east-1 deployment. Consider using StackSets for WAF if required"
           - id: AwsSolutions-CFR1
             reason: "Geo-restrictions not implemented for flexibility. Consider enabling geo-restrictions if regional compliance or security requirements dictate."
+          - id: W70
+            reason: "CloudFront defaults to TLS 1.2 minimum when using default certificate. Explicit MinimumProtocolVersion not required."
       checkov:
         skip:
           - id: CKV_AWS_174
@@ -954,6 +979,19 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W40
+            reason: "Egress rules defined separately with proper justifications for VPC-scoped access"
+          - id: W5
+            reason: "Egress rules defined separately with proper justifications for internet access"
+          - id: W42
+            reason: "Self-referencing ingress rules defined separately with proper justifications"
+          - id: W9
+            reason: "Ingress rules defined separately with proper justifications for CIDR ranges"
   securitygroupingresscodeserver:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -972,6 +1010,11 @@ Resources:
       ToPort: 80
       CidrIp: 0.0.0.0/0
       Description: Allow outbound HTTP for package downloads and Git operations
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: "Development environment requires outbound HTTP access for package downloads and Git operations"
   securitygroupegresscodeserverhttps:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
@@ -981,6 +1024,11 @@ Resources:
       ToPort: 443
       CidrIp: 0.0.0.0/0
       Description: Allow outbound HTTPS for package downloads and Git operations
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: "Development environment requires outbound HTTPS access for package downloads and Git operations"
   securitygroupegresscodeserverssh:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
@@ -990,6 +1038,11 @@ Resources:
       ToPort: 22
       CidrIp: 0.0.0.0/0
       Description: Allow outbound SSH for Git operations
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: "Development environment requires outbound SSH access for Git operations"
   securitygroupegresscodeservervpc:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
@@ -997,6 +1050,11 @@ Resources:
       IpProtocol: -1
       CidrIp: !Sub ${VpcCidr}.0.0/16
       Description: Allow all outbound traffic within VPC for AWS service access
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W40
+            reason: "Egress rule allows all protocols within VPC for AWS service access. Scoped to VPC CIDR only, not internet-facing."
 
   ### Authentication - Secrets Manager storing credentials for code-server access and CloudFront origin verification
   secretcodeserver:
@@ -1188,6 +1246,12 @@ Resources:
         - Key: environment
           Value: !Sub ${EnvironmentTag}
     Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W11
+            reason: "EC2 instance requires describe permissions and CloudWatch Logs access. Access limited by SourceAccount condition and scoped resources."
       cdk_nag:
         rules_to_suppress:
           - id: AwsSolutions-IAM5
@@ -1494,6 +1558,10 @@ Resources:
             reason: "Role scoped to prefix-matched S3 buckets and account-specific resources. Wildcard required for EC2/CodeBuild networking. Consider further restrictions if required."
       cfn_nag:
         rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W11
+            reason: "s3:ListAllMyBuckets is an account-level operation that requires * resource per AWS documentation"
           - id: F3
             reason: "Developer role requires broad permissions for infrastructure deployment. Scoped to specific resources and account. Consider further restrictions if required."
   # Policy allowing code-server user to assume the developer role
@@ -1814,6 +1882,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
           - id: AwsSolutions-IAM5
             reason: "Pipeline role policies scoped to specific resources. Wildcards required for S3 object access and KMS operations."
       cdk_nag:
@@ -2084,7 +2154,7 @@ Resources:
 
           def lambda_handler(event, context):
               arn = event['SecretId']
-              token = event['ClientRequestToken']
+              token = event['ClientRequestToken']  # checkov:skip=CKV_SECRET_6 AWS Secrets Manager rotation token from event
               step = event['Step']
 
               # Setup the client
@@ -2136,7 +2206,7 @@ Resources:
               # Create new secret with existing username and new password
               new_secret = {
                   'username': current_dict['username'],
-                  'password': passwd['RandomPassword']
+                  'password': passwd['RandomPassword']  # checkov:skip=CKV_SECRET_6 Generated password from AWS Secrets Manager
               }
 
               # Put the secret
@@ -2232,14 +2302,16 @@ Resources:
         - Key: environment
           Value: !Sub ${EnvironmentTag}
     Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Lambda function has CloudWatch Logs permissions in attached IAM role inline policy"
+          - id: W89
+            reason: "Lambda function requires internet access for AWS APIs and doesn't access VPC resources"
       cdk_nag:
         rules_to_suppress:
           - id: AwsSolutions-L1
             reason: "Using latest supported Python runtime (3.12). Will be updated when new versions are available."
-      checkov:
-        skip:
-          - id: CKV_SECRET_6
-            comment: "False positive - detecting event token and generated password variables in Lambda rotation function. No hardcoded secrets present."
   lambdasecretrotationpermission:
     Type: AWS::Lambda::Permission
     Condition: EnableRotation
@@ -2270,6 +2342,11 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
   iamrolepolicylambdarotation:
     Type: AWS::IAM::Policy
     Condition: EnableRotation
@@ -2317,6 +2394,10 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W12
+            reason: "secretsmanager:GetRandomPassword is a service-level operation that requires * resource per AWS documentation. AWS-managed SSM document uses * for account ID as it's available across all accounts"
           - id: AwsSolutions-IAM5
             reason: Lambda rotation role requires CloudWatch Logs and SSM document access. Wildcards scoped to specific log groups and SSM RunShellScript document.  Refer to https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets-required-permissions-function.html
       cdk_nag:
@@ -2413,6 +2494,13 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W11
+            reason: "ECS task execution role requires * resource for CloudWatch Logs and ECR operations per AWS documentation"
 
   iamroleecstask:
     Type: AWS::IAM::Role
@@ -2461,6 +2549,13 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W11
+            reason: "SSM Messages actions are session-level operations required for ECS Exec that cannot be restricted to specific resources. X-Ray actions are service-level operations for distributed tracing that require * resource per AWS documentation"
 
   # S3 Bucket for wildlife images
   s3bucketwildlife:
@@ -2554,6 +2649,11 @@ Resources:
               - kms:GenerateDataKey
             Resource:
               - !GetAtt kmskey.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
   # Unattached policy for app EFS access          
   iampolicymanagedwildlifeefs:
     Type: AWS::IAM::ManagedPolicy
@@ -2584,6 +2684,11 @@ Resources:
               - kms:GenerateDataKey
             Resource:
               - !GetAtt kmskey.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
   
   # Additional VPC configuration
   subnetprivate02:
@@ -2784,6 +2889,11 @@ Resources:
       FromPort: 5000
       ToPort: 5000
       DestinationSecurityGroupId: !Ref securitygroupcodeserver
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W9
+            reason: "VPC endpoints created during workshop with dynamic IPs. VPC CIDR required since specific /32 addresses unknown at deployment time."
 
   # Seed container workload security group rules
   securitygrouprulewildlifeself:
@@ -2795,6 +2905,11 @@ Resources:
       FromPort: -1
       ToPort: -1
       SourceSecurityGroupId: !Ref securitygroupcodeserver
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W42
+            reason: "Self-referencing security group rule allows resources in same SG to communicate. Safe pattern for workshop simplicity."
   securitygrouprulewildlifemongodb:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -2846,6 +2961,11 @@ Resources:
           Value: security
         - Key: environment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
 
   # Instance Profile for ECS Container Instances
   iaminstanceprofileecs:
@@ -2985,6 +3105,12 @@ Resources:
         - Key: environment
           Value: !Sub ${EnvironmentTag}
     Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Lambda function has CloudWatch Logs permissions in attached IAM role policy"
+          - id: W89
+            reason: "Lambda function requires internet access for API calls and doesn't access VPC resources"
       checkov:
         skip:
           - id: CKV_AWS_116
@@ -3014,6 +3140,11 @@ Resources:
           Value: security
         - Key: enviroironment
           Value: !Sub ${EnvironmentTag}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
   iamrolepolicylambdawildlife:
     Type: AWS::IAM::Policy
     Properties:
@@ -3043,6 +3174,10 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W12
+            reason: "execute-api:Invoke and X-Ray actions require * resource per AWS documentation for API Gateway and distributed tracing"
+          - id: W89
+            reason: "Lambda function requires internet access for API calls and doesn't access VPC resources"
           - id: AwsSolutions-IAM5
             reason: Lambda requires CloudWatch Logs access, API endpoint access, and X-Ray tracing permissions. Wildcards needed for execute-api invoke and X-Ray trace segments.
   eventbridgerulegpswildlife:
@@ -3062,6 +3197,11 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt eventbridgerulegpswildlife.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
   # Container Services Policy (ECS, ECR, Service Discovery)
   iampolicymanagedcontainer:
     Type: AWS::IAM::ManagedPolicy
@@ -3142,19 +3282,37 @@ Resources:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*"
           
           # Service Discovery
-          - Sid: ServiceDiscovery
+          - Sid: ServiceDiscoveryList
+            Effect: Allow
+            Action:
+              - servicediscovery:ListServices
+              - servicediscovery:CreateNamespace
+              - servicediscovery:ListNamespaces
+            Resource: "*"
+          
+          - Sid: ServiceDiscoverySpecific
             Effect: Allow
             Action:
               - servicediscovery:CreateService
               - servicediscovery:DeleteService
               - servicediscovery:GetService
-              - servicediscovery:ListServices
               - servicediscovery:UpdateService
-              - servicediscovery:CreateNamespace
               - servicediscovery:DeleteNamespace
               - servicediscovery:GetNamespace
-              - servicediscovery:ListNamespaces
-            Resource: "*"
+            Resource:
+              - !Sub "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:namespace/*"
+              - !Sub "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/*"
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W13
+            reason: "ECR GetAuthorizationToken and Service Discovery operations require * resource per AWS documentation. Access scoped to account and region."
+      checkov:
+        skip:
+          - id: CKV_AWS_111
+            comment: "ECR GetAuthorizationToken and Service Discovery operations require * resource per AWS documentation. Access scoped to account and region."
 
   # Infrastructure Policy (EC2, EFS, Auto Scaling, ELB)
   iampolicymanagedinfrastructure:
@@ -3308,6 +3466,17 @@ Resources:
               - efs:ModifyMountTargetSecurityGroups
             Resource:
               - !Sub "arn:aws:efs:${AWS::Region}:${AWS::AccountId}:file-system/*"
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W13
+            reason: "Application Auto Scaling, Service Discovery, and EC2 describe operations require * resource per AWS documentation. Access scoped to account and region where possible."
+      checkov:
+        skip:
+          - id: CKV_AWS_111
+            comment: "Application Auto Scaling, Service Discovery, and EC2 describe operations require * resource per AWS documentation. Access scoped to account and region where possible."
 
   # Support Services Policy (Lambda, IAM, CloudWatch, SSM, S3)
   iampolicymanagedservices:
@@ -3387,6 +3556,17 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}::parameter/aws/service/ecs/optimized-ami/*"
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+          - id: W13
+            reason: "SSM Parameter Store access for AWS service parameters requires * resource per AWS documentation. Access scoped to specific parameter paths."
+      checkov:
+        skip:
+          - id: CKV_AWS_111
+            comment: "SSM Parameter Store access for AWS service parameters requires * resource per AWS documentation. Access scoped to specific parameter paths."
 Outputs:
   01CodeServerURL:
     Description: URL to access code-server through CloudFront. Open in a separate tab and then return to collect password below!
