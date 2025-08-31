@@ -36,6 +36,7 @@ resource "aws_lb" "main" {
   # checkov:skip=CKV2_AWS_28:WAF not implemented for development environment. Consider WAF for production.
   # checkov:skip=CKV2_AWS_20:ALB uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
   # checkov:skip=CKV_AWS_150:Deletion protection disabled for development environment to allow easy cleanup
+  name               = "${var.PrefixCode}-alb-ecs"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [data.aws_security_group.alb.id]
