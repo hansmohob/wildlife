@@ -130,23 +130,23 @@ module "task_datadb" {
   user                     = "0:0" # Run as root for MongoDB
   log_group                = "/aws/ecs/${var.PrefixCode}-datadb"
 
-  # EFS volume for MongoDB data persistence
-  volumes = [
-    {
-      name = "mongodb-data"
-      efs_volume_configuration = {
-        file_system_id = aws_efs_file_system.mongodb.id
-        root_directory = "/"
-      }
-    }
-  ]
+  # # EFS volume for MongoDB data persistence
+  # volumes = [
+  #   {
+  #     name = "mongodb-data"
+  #     efs_volume_configuration = {
+  #       file_system_id = aws_efs_file_system.mongodb.id
+  #       root_directory = "/"
+  #     }
+  #   }
+  # ]
 
-  # Mount EFS volume to MongoDB data directory
-  mount_points = [
-    {
-      sourceVolume  = "mongodb-data"
-      containerPath = "/data/db"
-      readOnly      = false
-    }
-  ]
+  # # Mount EFS volume to MongoDB data directory
+  # mount_points = [
+  #   {
+  #     sourceVolume  = "mongodb-data"
+  #     containerPath = "/data/db"
+  #     readOnly      = false
+  #   }
+  # ]
 }
