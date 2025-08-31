@@ -135,6 +135,7 @@ def get_image(image_key):
         
         logger.info(f"Getting image: {image_key}")
         response = connect_with_retry(
+            lambda: requests.get(f'http://wildlife-media.wildlife:5000/wildlife/api/images/{image_key}', timeout=10),  # nosemgrep: request-with-http, use-raise-for-status - Internal service communication, error handling done by connect_with_retry
             'Media Service (wildlife-media)'
         )
         return response.content, response.status_code, response.headers.items()
