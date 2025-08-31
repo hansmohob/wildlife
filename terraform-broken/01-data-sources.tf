@@ -71,12 +71,8 @@ data "aws_key_pair" "main" {
   key_name = "wildlife-ec2-keypair"
 }
 
-data "aws_iam_policy" "s3_policy" {
-  name = "wildlife-iampolicy-s3"
-}
-
-data "aws_iam_policy" "efs_policy" {
-  name = "wildlife-iampolicy-efs"
+data "aws_iam_policy" "application_data_policy" {
+  name = "wildlife-policy-application-data"
 }
 
 data "aws_kms_key" "cmk" {

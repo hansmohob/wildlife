@@ -20,6 +20,9 @@ module "service_datadb" {
   load_balancer_enabled = false
 
   enable_execute_command = false
+
+  # Wait for service to be stable before other services start
+  wait_for_steady_state = true
 }
 
 # DataAPI Service - Fargate

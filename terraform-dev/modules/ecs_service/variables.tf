@@ -121,3 +121,9 @@ variable "minimum_healthy_percent" {
   type        = number
   default     = 100
 }
+
+variable "wait_for_steady_state" {
+  description = "Whether to wait for the service to reach a steady state"
+  type        = bool
+  default     = false
+}

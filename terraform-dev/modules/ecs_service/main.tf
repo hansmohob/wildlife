@@ -85,6 +85,9 @@ resource "aws_ecs_service" "service" {
     codeblock    = "ecs-service"
   }
 
+  # Wait for service to reach steady state if requested
+  wait_for_steady_state = var.wait_for_steady_state
+
   # Ignore changes to desired_count to allow Application Auto Scaling to manage it
   lifecycle {
     ignore_changes = [desired_count]
