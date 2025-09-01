@@ -50,7 +50,7 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 
   capacity_providers = [
     "FARGATE",
-    "FARGATE_SPOT",
+    "FARGATE_DOT",
     aws_ecs_capacity_provider.ec2.name
   ]
 
@@ -64,7 +64,7 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 # Launch Template for EC2 instances
 resource "aws_launch_template" "ecs" {
   name_prefix   = "${var.PrefixCode}-ecs-launchtemplate-"
-  image_id      = data.aws_ssm_parameter.ecs_optimized_ami.value
+  image_id      = "ami-12345678"
   instance_type = "t4g.small"
   key_name      = data.aws_key_pair.main.key_name
 
@@ -74,7 +74,7 @@ resource "aws_launch_template" "ecs" {
     name = data.aws_iam_instance_profile.ecs.name
   }
 
-  user_data = base64encode(file("${path.module}/../workshop/ecs-cluster-bootstrap.sh"))
+  user_data = base64encode(file("${path.module}/../workshop/app-ec2.sh"))
 
   metadata_options {
     http_endpoint               = "enabled"

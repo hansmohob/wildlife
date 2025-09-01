@@ -30,7 +30,7 @@ resource "aws_ecs_service" "service" {
     for_each = var.load_balancer_enabled ? [] : [1]
     content {
       strategy             = "BLUE_GREEN"
-      bake_time_in_minutes = 10
+      bake_time_in_minutes = 1
     }
   }
 
