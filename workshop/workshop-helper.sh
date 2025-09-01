@@ -638,10 +638,19 @@ create_efs_storage() {
     echo -e "${GREEN}Creating EFS Storage...${NC}"
     
     # AWS CLI COMMANDS: Create EFS file system with mount targets for persistent storage
-    aws iam attach-role-policy \
+    if ! aws iam list-attached-role-policies \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
-        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-iampolicy-efs \
-        --no-cli-pager
+        --query 'AttachedPolicies[?PolicyArn==`arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data`]' \
+        --output text | grep -q .; then
+        
+        aws iam attach-role-policy \
+            --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
+            --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data \
+            --no-cli-pager
+        echo "EFS policy attached successfully"
+    else
+        echo "EFS policy already attached, skipping"
+    fi
     
     EFS_ID=$(aws efs create-file-system \
         --creation-token "REPLACE_PREFIX_CODE-mongodb-$(date +%s)" \
