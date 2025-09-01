@@ -2721,7 +2721,6 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::patch-baseline-snapshot-${AWS::Region}/*
               - !Sub arn:${AWS::Partition}:s3:::aws-patch-manager-${AWS::Region}-*/*
               - !Sub arn:${AWS::Partition}:s3:::aws-patchmanager-macos-${AWS::Region}-*/*
-              # Access to Terraform
       RouteTableIds:
         - !Ref routetableprivate
         - !Ref routetableprivate02 
@@ -3155,13 +3154,13 @@ Resources:
               - ecr:GetRepositoryPolicy
             Resource:
               - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/wildlife/*"
-          
-          - Sid: ECRAuthToken
+          - Sid: ECRGlobalAccess
             Effect: Allow
             Action:
               - ecr:GetAuthorizationToken
-            Resource: "*"
-          
+              - ecr:DescribeRepositories
+              - ecr:ListRepositories
+            Resource: "*"    
           # ECS - Scoped to wildlife resources
           - Sid: ECSClusterManagement
             Effect: Allow
@@ -3175,7 +3174,6 @@ Resources:
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/wildlife-*"
-
           - Sid: ECSCapacityProvider
             Effect: Allow
             Action:
@@ -3186,7 +3184,6 @@ Resources:
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/wildlife-*"
-          
           - Sid: ECSServiceManagement
             Effect: Allow
             Action:
@@ -3194,14 +3191,20 @@ Resources:
               - ecs:DeleteService
               - ecs:UpdateService
               - ecs:DescribeServices
-              - ecs:DescribeServiceDeployments
               - ecs:ListServices
-              - ecs:ListServiceDeployments
               - ecs:TagResource
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/wildlife-*/*"
-          
+          - Sid: ECSServiceDeployments
+            Effect: Allow
+            Action:
+              - ecs:DescribeServiceDeployments
+              - ecs:ListServiceDeployments
+            Resource:
+              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/wildlife-*/*"
+              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service-deployment/wildlife-*/*/*"
+              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service-revision/wildlife-*/*/*"
           - Sid: ECSTaskDefinitions
             Effect: Allow
             Action:
@@ -3212,17 +3215,13 @@ Resources:
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/wildlife-*:*"
-
           - Sid: ECSTaskManagement
             Effect: Allow
             Action:
-              - ecs:ListTasks
-              - ecs:DescribeTasks
               - ecs:ExecuteCommand
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/wildlife-*"
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/wildlife-*/*"
-
           - Sid: ECSAccountSettings
             Effect: Allow
             Action:
@@ -3231,6 +3230,8 @@ Resources:
               - ecs:ListAccountSettings
               - ecs:ListTaskDefinitions
               - ecs:DeregisterTaskDefinition
+              - ecs:ListTasks
+              - ecs:DescribeTasks
             Resource: "*"
 
           # Service Discovery
@@ -3244,7 +3245,6 @@ Resources:
               - servicediscovery:TagResource
               - servicediscovery:GetOperation 
             Resource: "*"
-          
           - Sid: ServiceDiscoverySpecific
             Effect: Allow
             Action:
@@ -3292,7 +3292,6 @@ Resources:
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*"
-          
           - Sid: EC2LaunchTemplates
             Effect: Allow
             Action:
@@ -3311,7 +3310,6 @@ Resources:
               - ec2:DeleteTags
             Resource:
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/*"
-
           - Sid: EC2RunInstances
             Effect: Allow
             Action:
@@ -3330,7 +3328,6 @@ Resources:
                 iam:PassedToService:
                   - ec2.amazonaws.com
                   - autoscaling.amazonaws.com
-          
           - Sid: EC2SecurityGroups
             Effect: Allow
             Action:
@@ -3341,7 +3338,6 @@ Resources:
               - ec2:DescribeSecurityGroups
             Resource:
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
-          
           - Sid: EC2ReadOnlyOperations
             Effect: Allow
             Action:
@@ -3361,8 +3357,6 @@ Resources:
               - ec2:DescribeLaunchTemplateVersions
               - ec2:DescribeSecurityGroupRules
             Resource: "*"
-          
-          # Auto Scaling Group
           - Sid: AutoScalingGroup
             Effect: Allow
             Action:
@@ -3375,8 +3369,6 @@ Resources:
             Resource:
               - !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/wildlife-*"
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
-
-          # Auto Scaling Groups
           - Sid: AutoScalingGroups
             Effect: Allow
             Action:
@@ -3384,8 +3376,6 @@ Resources:
               - autoscaling:DescribeAutoScalingInstances
               - autoscaling:DescribeScalingActivities
             Resource: "*"  
-          
-          # Application Auto Scaling
           - Sid: ApplicationAutoScaling
             Effect: Allow
             Action:
@@ -3400,8 +3390,6 @@ Resources:
               - application-autoscaling:UntagResource
               - application-autoscaling:ListTagsForResource
             Resource: "*"
-          
-          # Elastic Load Balancing
           - Sid: ELBLoadBalancers
             Effect: Allow
             Action:
@@ -3415,7 +3403,6 @@ Resources:
               - elasticloadbalancing:DescribeTags
             Resource:
               - !Sub "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/wildlife-*/*"
-          
           - Sid: ELBDescribeOperations
             Effect: Allow
             Action:
@@ -3427,7 +3414,6 @@ Resources:
               - elasticloadbalancing:DescribeLoadBalancerAttributes
               - elasticloadbalancing:DescribeListenerAttributes
             Resource: "*"
-
           - Sid: ELBTargetGroups
             Effect: Allow
             Action:
@@ -3441,7 +3427,6 @@ Resources:
               - elasticloadbalancing:RemoveTags
             Resource:
               - !Sub "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/wildlife-*/*"
-          
           - Sid: ELBListeners
             Effect: Allow
             Action:
@@ -3454,8 +3439,6 @@ Resources:
             Resource:
               - !Sub "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener/app/wildlife-*/*/*"
               - !Sub "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/wildlife-*/*"
-          
-          # EFS - Elastic File System
           - Sid: EFSFileSystemManagement
             Effect: Allow
             Action:
@@ -3465,7 +3448,6 @@ Resources:
               - elasticfilesystem:ListTagsForResource
             Resource:
               - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*"
-
           - Sid: EFSCreation
             Effect: Allow
             Action:
@@ -3473,21 +3455,18 @@ Resources:
               - elasticfilesystem:DescribeFileSystems
               - elasticfilesystem:DescribeLifecycleConfiguration
             Resource: "*"
-
           - Sid: EFSTagging
             Effect: Allow
             Action:
               - elasticfilesystem:TagResource
               - elasticfilesystem:UntagResource
             Resource: "*"
-          
           - Sid: EFSMountTargetManagement
             Effect: Allow
             Action:
               - elasticfilesystem:ModifyMountTargetSecurityGroups
             Resource:
               - !Sub "arn:aws:efs:${AWS::Region}:${AWS::AccountId}:file-system/*"
-
           - Sid: EFSMountTargetCreationandDeletion
             Effect: Allow
             Action:
@@ -3537,6 +3516,12 @@ Resources:
             Resource:
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}/*
+          # workshop helper fix GPS Lambda
+          - Sid: LambdaListFunctions  
+            Effect: Allow
+            Action:
+              - lambda:ListFunctions
+            Resource: "*"
           - Sid: LambdaFunctionConfiguration
             Effect: Allow
             Action:
@@ -3544,7 +3529,17 @@ Resources:
               - lambda:GetFunction
               - lambda:GetFunctionConfiguration
             Resource:
-              - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function/wildlife-*"
+              - !GetAtt lambdagpswildlife.Arn
+          - Sid: LambdaAccesstoKMS
+            Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Resource:
+              - !GetAtt kmskey.Arn
+
           - Sid: IAMInstanceProfileAccess
             Effect: Allow
             Action:
@@ -3640,7 +3635,6 @@ Resources:
             Resource:
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*"
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*:*"
-
           - Sid: XRayAccess
             Effect: Allow
             Action:
@@ -3692,7 +3686,6 @@ Resources:
             Resource:
               - !Sub "arn:aws:s3:::${s3bucketwildlife}"
               - !Sub "arn:aws:s3:::${s3bucketwildlife}/*"
-
           # EFS - Wildlife file system access
           - Sid: EFSWildlifeAccess
             Effect: Allow
@@ -3705,7 +3698,6 @@ Resources:
             Resource:
               - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*"
               - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:mount-target/*"
-
           # KMS - For S3 and EFS encryption
           - Sid: KMSDataAccess
             Effect: Allow
