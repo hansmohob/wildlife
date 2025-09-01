@@ -236,6 +236,22 @@ Resources:
             Condition:
               ArnLike:
                 "kms:EncryptionContext:aws:logs:arn": !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - Sid: Enable EFS access to KMS Key
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:CreateGrant
+              - kms:DescribeKey
+            Resource: "*"
+            Condition:
+              StringEquals:
+                "kms:ViaService": !Sub "elasticfilesystem.${AWS::Region}.amazonaws.com"
+                "kms:CallerAccount": !Ref AWS::AccountId
       Tags:
         - Key: provisioner
           Value: CFN
@@ -1485,7 +1501,9 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: codebuild.amazonaws.com
+              Service:
+                - codebuild.amazonaws.com
+                - ec2.amazonaws.com
               AWS: !GetAtt iamrolecodeserver.Arn
             Action: sts:AssumeRole
       Policies:
@@ -1524,7 +1542,7 @@ Resources:
         - PolicyName: !Sub ${PrefixCode}-iampolicy-ec2codebuild
           PolicyDocument:
             Version: 2012-10-17
-            Statement:          
+            Statement:
               - Effect: Allow
                 Action:
                   - ec2:DescribeDhcpOptions
@@ -1550,6 +1568,7 @@ Resources:
         - !Ref iampolicymanagedcontainer
         - !Ref iampolicymanagedinfrastructure
         - !Ref iampolicymanagedservices
+        - !Ref iampolicymanagedapplicationdata
       Tags:
         - Key: Name
           Value: !Sub ${PrefixCode}-iamrole-developer
@@ -2420,34 +2439,7 @@ Resources:
             reason: "Lambda requires CloudWatch Logs access and SSM RunShellScript document permissions. GetRandomPassword requires * resource."
 
   ### Workshop pre-created resources
-
-  # Additional IAM policies for developer role
-  iampolicywildlifeecr:
-    Type: AWS::IAM::RolePolicy
-    Properties:
-      RoleName: !Ref iamrolecodeserver
-      PolicyName: !Sub ${PrefixCode}-iampolicy-ecr
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - ecr:BatchCheckLayerAvailability
-              - ecr:GetDownloadUrlForLayer
-              - ecr:GetRepositoryPolicy
-              - ecr:DescribeImages
-              - ecr:ListImages
-              - ecr:PutImage
-              - ecr:InitiateLayerUpload
-              - ecr:UploadLayerPart
-              - ecr:CompleteLayerUpload
-            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/wildlife*
-          - Effect: Allow
-            Action: 
-              - ecr:DescribeRepositories
-              - ecr:GetAuthorizationToken
-            Resource: "*"
-
+###IAMPOLICYSTART
   # ECS Task Execution role
   iamroleecstaskexecution:
     Type: AWS::IAM::Role
@@ -2512,6 +2504,7 @@ Resources:
           - id: W11
             reason: "ECS task execution role requires * resource for CloudWatch Logs and ECR operations per AWS documentation"
 
+ # ECS Task role
   iamroleecstask:
     Type: AWS::IAM::Role
     Properties:
@@ -2615,91 +2608,7 @@ Resources:
                 aws:SecureTransport: false
               NumericLessThan:
                 s3:TlsVersion: 1.2
-  iampolicywildlifeS3:
-    Type: AWS::IAM::RolePolicy
-    Properties:
-      RoleName: !Ref iamrolecodeserver
-      PolicyName: !Sub ${PrefixCode}-iampolicy-s3
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:DeleteObject
-              - s3:ListBucket
-              - s3:GetObject
-              - s3:GetObjectVersion
-              - s3:GetBucketLocation
-            Resource: 
-              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
-              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
 
-  # Unattached policy for app wildlife S3 access          
-  iampolicymanagedwildlifes3:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: !Sub ${PrefixCode}-iampolicy-s3
-      Description: "Policy for accessing the wildlife S3 bucket"
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - s3:PutObject
-              - s3:GetObject
-              - s3:ListBucket
-            Resource:
-              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}
-              - !Sub arn:${AWS::Partition}:s3:::${s3bucketwildlife}/*
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
-              - kms:DescribeKey
-              - kms:GenerateDataKey
-            Resource:
-              - !GetAtt kmskey.Arn
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W28
-            reason: "Explicit name required for workshop instructions and resource identification"
-  # Unattached policy for app EFS access          
-  iampolicymanagedwildlifeefs:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: !Sub ${PrefixCode}-iampolicy-efs
-      Description: "Policy for accessing the wildlife EFS file system"
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - elasticfilesystem:ClientMount
-              - elasticfilesystem:ClientWrite
-              - elasticfilesystem:ClientRootAccess
-            Resource:
-              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*
-          - Effect: Allow
-            Action:
-              - elasticfilesystem:DescribeFileSystems
-              - elasticfilesystem:DescribeMountTargets
-            Resource:
-              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*
-              - !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:mount-target/*
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
-              - kms:DescribeKey
-              - kms:GenerateDataKey
-            Resource:
-              - !GetAtt kmskey.Arn
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W28
-            reason: "Explicit name required for workshop instructions and resource identification"
-  
   # Additional VPC configuration
   subnetprivate02:
     Type: AWS::EC2::Subnet
@@ -3212,7 +3121,7 @@ Resources:
         rules_to_suppress:
           - id: W28
             reason: "Explicit name required for workshop instructions and resource identification"
-  # Container Services Policy (ECS, ECR, Service Discovery)
+  # Core Container Services Policy - ECS, ECR, Service Discovery
   iampolicymanagedcontainer:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -3221,14 +3130,13 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          # ECR - Container Registry Operations
+          # ECR - Scoped to wildlife repositories only
           - Sid: ECRRepositoryManagement
             Effect: Allow
             Action:
               - ecr:CreateRepository
               - ecr:DeleteRepository
               - ecr:DescribeRepositories
-              - ecr:GetAuthorizationToken
               - ecr:BatchCheckLayerAvailability
               - ecr:CompleteLayerUpload
               - ecr:InitiateLayerUpload
@@ -3238,6 +3146,13 @@ Resources:
               - ecr:GetDownloadUrlForLayer
               - ecr:ListImages
               - ecr:DescribeImages
+              - ecr:ListTagsForResource
+              - ecr:TagResource
+              - ecr:UntagResource
+              - ecr:PutLifecyclePolicy
+              - ecr:GetLifecyclePolicy
+              - ecr:DeleteLifecyclePolicy
+              - ecr:GetRepositoryPolicy
             Resource:
               - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/wildlife/*"
           
@@ -3247,14 +3162,7 @@ Resources:
               - ecr:GetAuthorizationToken
             Resource: "*"
           
-          # ECS - Container Orchestration
-          - Sid: ECSAccountSettings
-            Effect: Allow
-            Action:
-              - ecs:PutAccountSetting
-              - ecs:ListAccountSettings
-            Resource: "*"
-
+          # ECS - Scoped to wildlife resources
           - Sid: ECSClusterManagement
             Effect: Allow
             Action:
@@ -3267,13 +3175,15 @@ Resources:
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/wildlife-*"
-              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/*"
 
           - Sid: ECSCapacityProvider
             Effect: Allow
             Action:
               - ecs:CreateCapacityProvider
               - ecs:DeleteCapacityProvider
+              - ecs:DescribeCapacityProviders
+              - ecs:TagResource
+              - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/wildlife-*"
           
@@ -3284,49 +3194,55 @@ Resources:
               - ecs:DeleteService
               - ecs:UpdateService
               - ecs:DescribeServices
+              - ecs:DescribeServiceDeployments
               - ecs:ListServices
+              - ecs:ListServiceDeployments
               - ecs:TagResource
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/wildlife-*/*"
-              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/*/*"
           
           - Sid: ECSTaskDefinitions
             Effect: Allow
             Action:
               - ecs:RegisterTaskDefinition
-              - ecs:DescribeTaskDefinition
+              - ecs:DeregisterTaskDefinition
               - ecs:ListTaskDefinitionFamilies
               - ecs:TagResource
               - ecs:UntagResource
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/wildlife-*:*"
-              - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*:*"
 
-          - Sid: ECSGlobalTasks
+          - Sid: ECSTaskManagement
             Effect: Allow
             Action:
               - ecs:ListTasks
-              - ecs:ListTaskDefinitions
-              - ecs:DeregisterTaskDefinition
-            Resource: "*"
-
-          - Sid: ECSExecuteCommand
-            Effect: Allow
-            Action:
-              - ecs:ExecuteCommand
               - ecs:DescribeTasks
+              - ecs:ExecuteCommand
             Resource:
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/wildlife-*"
               - !Sub "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/wildlife-*/*"
+
+          - Sid: ECSAccountSettings
+            Effect: Allow
+            Action:
+              - ecs:PutAccountSetting
+              - ecs:DescribeTaskDefinition
+              - ecs:ListAccountSettings
+              - ecs:ListTaskDefinitions
+              - ecs:DeregisterTaskDefinition
+            Resource: "*"
 
           # Service Discovery
           - Sid: ServiceDiscoveryList
             Effect: Allow
             Action:
               - servicediscovery:ListServices
-              - servicediscovery:CreateNamespace
               - servicediscovery:ListNamespaces
+              - servicediscovery:CreateNamespace
+              - servicediscovery:CreateHttpNamespace
+              - servicediscovery:TagResource
+              - servicediscovery:GetOperation 
             Resource: "*"
           
           - Sid: ServiceDiscoverySpecific
@@ -3338,6 +3254,7 @@ Resources:
               - servicediscovery:UpdateService
               - servicediscovery:DeleteNamespace
               - servicediscovery:GetNamespace
+              - servicediscovery:ListTagsForResource
             Resource:
               - !Sub "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:namespace/*"
               - !Sub "arn:aws:servicediscovery:${AWS::Region}:${AWS::AccountId}:service/*"
@@ -3384,23 +3301,23 @@ Resources:
               - ec2:ModifyLaunchTemplate
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeLaunchTemplateVersions
-              - ec2:RunInstances
               - ec2:CreateTags
             Resource:
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
+          - Sid: EC2VPCEndpointTagging
+            Effect: Allow
+            Action:
+              - ec2:CreateTags
+              - ec2:DeleteTags
+            Resource:
+              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/*"
 
           - Sid: EC2RunInstances
             Effect: Allow
             Action:
               - ec2:RunInstances
-            Resource:
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:key-pair/wildlife-*"        
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"  
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*"  
-              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"  
-              - !Sub "arn:aws:ec2:${AWS::Region}::image/*"
+            Resource: "*"
+            # Reference: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-launch-template-permissions.html
 
           # Add IAM PassRole permission
           - Sid: IAMPassRole
@@ -3408,10 +3325,11 @@ Resources:
             Action:
               - iam:PassRole
             Resource: "*"
-              # - !Sub "arn:aws:iam::${AWS::AccountId}:role/wildlife-*"
             Condition:
               StringEquals:
-                iam:PassedToService: ec2.amazonaws.com    
+                iam:PassedToService:
+                  - ec2.amazonaws.com
+                  - autoscaling.amazonaws.com
           
           - Sid: EC2SecurityGroups
             Effect: Allow
@@ -3421,7 +3339,6 @@ Resources:
               - ec2:RevokeSecurityGroupIngress
               - ec2:RevokeSecurityGroupEgress
               - ec2:DescribeSecurityGroups
-              - ec2:DescribeSecurityGroupRules
             Resource:
               - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*"
           
@@ -3434,10 +3351,15 @@ Resources:
               - ec2:DescribeKeyPairs
               - ec2:DescribeSubnets
               - ec2:DescribeVpcs
+              - ec2:DescribeVpcAttribute
               - ec2:DescribeAvailabilityZones
               - ec2:DescribeNetworkInterfaces
               - ec2:DescribeRouteTables
               - ec2:DescribeVpcEndpoints
+              - ec2:DescribePrefixLists
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:DescribeSecurityGroupRules
             Resource: "*"
           
           # Auto Scaling Group
@@ -3452,6 +3374,7 @@ Resources:
               - autoscaling:CreateOrUpdateTags
             Resource:
               - !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/wildlife-*"
+              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*"
 
           # Auto Scaling Groups
           - Sid: AutoScalingGroups
@@ -3459,6 +3382,7 @@ Resources:
             Action:
               - autoscaling:DescribeAutoScalingGroups
               - autoscaling:DescribeAutoScalingInstances
+              - autoscaling:DescribeScalingActivities
             Resource: "*"  
           
           # Application Auto Scaling
@@ -3472,6 +3396,9 @@ Resources:
               - application-autoscaling:DeleteScalingPolicy
               - application-autoscaling:DescribeScalingPolicies
               - application-autoscaling:DescribeScalingActivities
+              - application-autoscaling:TagResource
+              - application-autoscaling:UntagResource
+              - application-autoscaling:ListTagsForResource
             Resource: "*"
           
           # Elastic Load Balancing
@@ -3495,6 +3422,10 @@ Resources:
               - elasticloadbalancing:DescribeTargetGroups
               - elasticloadbalancing:DescribeLoadBalancers
               - elasticloadbalancing:DescribeListeners
+              - elasticloadbalancing:DescribeTargetGroupAttributes
+              - elasticloadbalancing:DescribeTags
+              - elasticloadbalancing:DescribeLoadBalancerAttributes
+              - elasticloadbalancing:DescribeListenerAttributes
             Resource: "*"
 
           - Sid: ELBTargetGroups
@@ -3503,6 +3434,7 @@ Resources:
               - elasticloadbalancing:CreateTargetGroup
               - elasticloadbalancing:DeleteTargetGroup
               - elasticloadbalancing:DescribeTargetGroupAttributes
+              - elasticloadbalancing:DescribeTargetGroupAttributes 
               - elasticloadbalancing:ModifyTargetGroupAttributes
               - elasticloadbalancing:DescribeTargetHealth
               - elasticloadbalancing:AddTags
@@ -3532,13 +3464,14 @@ Resources:
               - elasticfilesystem:ModifyFileSystem
               - elasticfilesystem:ListTagsForResource
             Resource:
-              - !Sub "arn:aws:efs:${AWS::Region}:${AWS::AccountId}:file-system/*"
+              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*"
 
           - Sid: EFSCreation
             Effect: Allow
             Action:
               - elasticfilesystem:CreateFileSystem
               - elasticfilesystem:DescribeFileSystems
+              - elasticfilesystem:DescribeLifecycleConfiguration
             Resource: "*"
 
           - Sid: EFSTagging
@@ -3546,7 +3479,7 @@ Resources:
             Action:
               - elasticfilesystem:TagResource
               - elasticfilesystem:UntagResource
-            Resource: "*"  
+            Resource: "*"
           
           - Sid: EFSMountTargetManagement
             Effect: Allow
@@ -3561,8 +3494,14 @@ Resources:
               - elasticfilesystem:CreateMountTarget
               - elasticfilesystem:DescribeMountTargets
               - elasticfilesystem:DeleteMountTarget
+              - elasticfilesystem:DescribeMountTargetSecurityGroups
             Resource: "*"
-
+          - Sid: EC2InstanceTagging
+            Effect: Allow
+            Action:
+              - ec2:CreateTags
+            Resource:
+              - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -3598,8 +3537,6 @@ Resources:
             Resource:
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}
               - !Sub arn:${AWS::Partition}:s3:::${s3bucketgit}/*
-          
-          # Lambda - Function Configuration
           - Sid: LambdaFunctionConfiguration
             Effect: Allow
             Action:
@@ -3608,8 +3545,12 @@ Resources:
               - lambda:GetFunctionConfiguration
             Resource:
               - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function/wildlife-*"
-          
-          # IAM - Role Policy Management (Limited)
+          - Sid: IAMInstanceProfileAccess
+            Effect: Allow
+            Action:
+              - iam:GetInstanceProfile
+              - iam:ListInstanceProfiles
+            Resource: "*"
           - Sid: IAMRolePolicyManagement
             Effect: Allow
             Action:
@@ -3621,7 +3562,11 @@ Resources:
               - iam:ListRolePolicies
             Resource:
               - !Sub "arn:aws:iam::${AWS::AccountId}:role/wildlife-*"
-          
+          - Sid: IAMListPolicies
+            Effect: Allow
+            Action:
+              - iam:ListPolicies
+            Resource: "*"
           - Sid: IAMPolicyAccess
             Effect: Allow
             Action:
@@ -3630,8 +3575,6 @@ Resources:
               - iam:ListPolicyVersions
             Resource:
               - !Sub "arn:aws:iam::${AWS::AccountId}:policy/wildlife-*"
-          
-          # CloudWatch Logs
           - Sid: CloudWatchLogs
             Effect: Allow
             Action:
@@ -3644,8 +3587,12 @@ Resources:
             Resource:
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*"
               - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*wildlife*"
-          
-          # SSM - Parameter Store (for AMI IDs)
+          - Sid: KMSKeyAccess
+            Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:ListAliases
+            Resource: "*"
           - Sid: SSMParameterAccess
             Effect: Allow
             Action:
@@ -3653,6 +3600,63 @@ Resources:
               - ssm:GetParameters
             Resource:
               - !Sub "arn:aws:ssm:${AWS::Region}::parameter/aws/service/ecs/optimized-ami/*"
+          - Sid: KMSECRAccess
+            Effect: Allow
+            Action:
+              - kms:RetireGrant
+              - kms:CreateGrant
+              - kms:DescribeKey
+              - kms:ListAliases
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: 
+              - !GetAtt kmskey.Arn
+              - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/ecr"
+              - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+            Condition:
+              StringEquals:
+                kms:ViaService: !Sub "ecr.${AWS::Region}.amazonaws.com"
+          - Sid: IAMServiceLinkedRoles
+            Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+            Resource: 
+              - "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+              - "arn:aws:iam::*:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS"
+              - "arn:aws:iam::*:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+            Condition:
+              StringEquals:
+                iam:AWSServiceName: 
+                  - autoscaling.amazonaws.com
+                  - ecs.amazonaws.com
+                  - ecs.application-autoscaling.amazonaws.com 
+          - Sid: CloudWatchLogsAccess
+            Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/ecs/*:*"
+
+          - Sid: XRayAccess
+            Effect: Allow
+            Action:
+              - xray:GetTraceSummaries
+              - xray:BatchGetTraces
+              - xray:GetServiceMap
+              - xray:GetTimeSeriesServiceStatistics
+            Resource: "*"
+          - Sid: LambdaGPSrewire
+            Effect: Allow
+            Action:
+              - lambda:UpdateFunctionConfiguration
+              - lambda:GetFunction
+              - lambda:GetFunctionConfiguration
+            Resource:
+              - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function/wildlife-*"
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -3664,6 +3668,59 @@ Resources:
         skip:
           - id: CKV_AWS_111
             comment: "SSM Parameter Store access for AWS service parameters requires * resource per AWS documentation. Access scoped to specific parameter paths."
+
+  # Application Data Access Policy - S3 and EFS for applications
+  iampolicymanagedapplicationdata:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${PrefixCode}-policy-application-data
+      Description: Application data access permissions (S3, EFS)
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          # S3 - Wildlife bucket access
+          - Sid: S3WildlifeBucketAccess
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - s3:ListObjectsV2
+              - s3:GetObjectVersion
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub "arn:aws:s3:::${s3bucketwildlife}"
+              - !Sub "arn:aws:s3:::${s3bucketwildlife}/*"
+
+          # EFS - Wildlife file system access
+          - Sid: EFSWildlifeAccess
+            Effect: Allow
+            Action:
+              - elasticfilesystem:ClientMount
+              - elasticfilesystem:ClientWrite
+              - elasticfilesystem:ClientRootAccess
+              - elasticfilesystem:DescribeFileSystems
+              - elasticfilesystem:DescribeMountTargets
+            Resource:
+              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/*"
+              - !Sub "arn:aws:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:mount-target/*"
+
+          # KMS - For S3 and EFS encryption
+          - Sid: KMSDataAccess
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:GenerateDataKey
+            Resource:
+              - !GetAtt kmskey.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "Explicit name required for workshop instructions and resource identification"
+###IAMPOLICYEND
 Outputs:
   01CodeServerURL:
     Description: URL to access code-server through CloudFront. Open in a separate tab and then return to collect password below!
