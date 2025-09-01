@@ -13,29 +13,17 @@ module "ecr_frontend" {
 }
 
 # Data API service repository
-module "ecr_dataapi" {
-  source      = "./modules/ecr_repository"
-  name        = "${var.PrefixCode}/dataapi"
-  kms_key_arn = data.aws_kms_key.default.arn
-}
+# TODO: Add the dataapi service repository
 
 # Alerts service repository
-module "ecr_alerts" {
-  source      = "./modules/ecr_repository"
-  name        = "${var.PrefixCode}/alerts"
-  kms_key_arn = data.aws_kms_key.default.arn
-}
+# TODO: Add the alerts service repository
 
-# Media service repository
-module "ecr_media" {
-  source      = "./modules/ecr_repository"
-  name        = "${var.PrefixCode}/media"
-  kms_key_arn = data.aws_kms_key.default.arn
-}
+# Media service repository - MISSING!
+# TODO: Add the media service repository
 
 # Database service repository
 module "ecr_datadb" {
-  source      = "./modules/ecr_repository"
+  source      = "./modules/ecs_service"
   name        = "${var.PrefixCode}/datadb"
   kms_key_arn = data.aws_kms_key.default.arn
 }
