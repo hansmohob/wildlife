@@ -75,8 +75,8 @@ module "service_alerts" {
 
   enable_execute_command = false
 
-  # Wait for DataDB to be running first
-  depends_on = [module.service_datadb]
+  # Wait for DataAPI to be running first
+  depends_on = [module.service_dataapi]
 }
 
 # Media Service - EC2 (uses capacity provider)
@@ -110,7 +110,8 @@ module "service_media" {
 
   enable_execute_command = false
 
-  depends_on = [module.service_datadb]
+  # Wait for Alerts to be running first
+  depends_on = [module.service_alerts]
 }
 
 # Frontend Service - Fargate with Load Balancer
@@ -139,6 +140,6 @@ module "service_frontend" {
 
   enable_execute_command = false
 
-  # Wait for DataDB to be running first
-  depends_on = [module.service_datadb]
+  # Wait for Media to be running first
+  depends_on = [module.service_media]
 }
