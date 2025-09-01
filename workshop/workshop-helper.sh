@@ -611,7 +611,7 @@ fix_image_upload() {
     # AWS CLI COMMANDS: Attach S3 policy to ECS task role and force service deployment
     aws iam attach-role-policy \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
-        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-application-data
+        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data
 
     echo "Forcing new deployment for media service..."
     aws ecs update-service \
