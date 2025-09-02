@@ -22,7 +22,8 @@ module "task_frontend" {
 
   volumes = [
     {
-      name = "tmp-volume"
+      name                     = "tmp-volume"
+      efs_volume_configuration = null
     }
   ]
 
