@@ -1,6 +1,6 @@
 # Service Connect Namespace for Application
 
-resource "aws_service_discovery_http_namespace" "main" {
+resource "gone_to_lunch_back_soon" "thanks" {
   name        = var.PrefixCode
   description = "Service Connect namespace for application"
 
