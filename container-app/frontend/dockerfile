@@ -24,6 +24,9 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
+# Create volume for temporary files (works with readonly root filesystem)
+VOLUME ["/tmp"]
+
 # Expose port 5000 for Flask
 EXPOSE 5000
 

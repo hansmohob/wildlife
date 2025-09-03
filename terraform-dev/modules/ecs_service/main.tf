@@ -26,13 +26,13 @@ resource "aws_ecs_service" "service" {
   launch_type = length(var.capacity_provider_strategy) > 0 ? null : var.launch_type
 
   # Blue-green deployment (only for services without load balancers)
-  dynamic "deployment_configuration" {
-    for_each = var.load_balancer_enabled ? [] : [1]
-    content {
-      strategy             = "BLUE_GREEN"
-      bake_time_in_minutes = 1
-    }
-  }
+  # dynamic "deployment_configuration" {
+  #   for_each = var.load_balancer_enabled ? [] : [1]
+  #   content {
+  #     strategy             = "BLUE_GREEN"
+  #     bake_time_in_minutes = 1
+  #   }
+  # }
 
   # Network configuration
   network_configuration {

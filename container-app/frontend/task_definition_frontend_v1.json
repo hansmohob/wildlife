@@ -12,7 +12,8 @@
     "taskRoleArn": "arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:role/REPLACE_PREFIX_CODE-iamrole-ecs-task",
     "volumes": [
         {
-            "name": "tmp-volume"
+            "name": "tmp-volume",
+            "host": {}       
         }
     ],
     "containerDefinitions": [
@@ -20,7 +21,7 @@
             "name": "wildlife-frontend",
             "image": "REPLACE_AWS_ACCOUNT_ID.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/wildlife/frontend:latest",
             "essential": true,
-            "readonlyRootFilesystem": false,
+            "readonlyRootFilesystem": true,
             "portMappings": [
                 {
                     "containerPort": 5000,
