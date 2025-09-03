@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "s3" {  
-    bucket       = "aws102-ws-s3bucketwildlife-gzhxd8py4ork"
+    bucket       = "REPLACE_S3_BUCKET_WILDLIFE"
     key          = "terraform/statefile-dev.tfstate"
     encrypt      = true
     use_lockfile = true
