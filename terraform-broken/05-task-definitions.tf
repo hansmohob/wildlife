@@ -43,7 +43,6 @@ module "task_dataapi" {
   cpu                      = "512"
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn            = data.aws_iam_role.ecs_task.arn
 
   container_name  = "${var.PrefixCode}-dataapi"
@@ -61,7 +60,7 @@ module "task_alerts" {
 
   family                   = "${var.PrefixCode}-alerts-task"
   cpu                      = "512"
-  memory                   = "1024"
+  memory                   = "1536"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn            = data.aws_iam_role.ecs_task.arn
