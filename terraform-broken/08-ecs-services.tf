@@ -91,7 +91,7 @@ module "service_media" {
   # Use EC2 capacity provider
   capacity_provider_strategy = [
     {
-      capacity_provider = ec2
+      capacity_provider = EC2
       weight            = 1
       base              = 0
     }
