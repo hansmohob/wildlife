@@ -4,7 +4,7 @@
 resource "aws_lb_target_group" "frontend" {
   name        = "${var.PrefixCode}-targetgroup-ecs"
   port        = 5000
-  # checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS if certificate management overhead is acceptable.
+  # checkov:skip=CKV_AWS_378:Target group uses HTTP for workshop environment. Consider end-to-end HTTPS.
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.main.id
   target_type = "ip"
@@ -68,7 +68,7 @@ resource "aws_lb_listener" "frontend" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   # nosemgrep: insecure-load-balancer-tls-version - HTTP listener for workshop environment, TLS not applicable
-  protocol          = "HTTP"
+  protocol          = "TCP"
 
   default_action {
     type             = "forward"
@@ -88,16 +88,16 @@ output "application_url" {
   value       = "http://${aws_lb.main.dns_name}/wildlife"
 }
 
-# Security Group Rule to allow public HTTP access to ALB
+# Security Group Rule to allow public HTTP access to ALB from workshop attendee
 # nosemgrep: aws-ec2-security-group-allows-public-ingress - Public HTTP access required for workshop ALB
 resource "aws_security_group_rule" "alb_http_public" {
-  # checkov:skip=CKV_AWS_260:Public HTTP access required for workshop ALB. In production, consider restricting to specific IP ranges or using CloudFront.
+  # checkov:skip=CKV_AWS_260:Public HTTP access required for workshop ALB. In production, consider using CloudFront or SSL
   type              = "ingress"
   from_port         = 80 
   to_port           = 80
   protocol          = "tcp"
   # nosemgrep: aws-ec2-security-group-allows-public-ingress - Public HTTP access required for workshop ALB
-  cidr_blocks       = ["0.0.0.0/0"]
+  cidr_blocks       = ["1.2.3.4/5"]
   security_group_id = data.aws_security_group.alb.id
-  description       = "Allow HTTP access from anywhere"
+  description       = "Allow HTTP access from user"
 }
