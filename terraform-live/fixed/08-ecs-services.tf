@@ -39,7 +39,7 @@ module "service_dataapi" {
   security_group_ids = [data.aws_security_group.app.id]
   assign_public_ip   = false
 
-  service_connect_namespace_arn  = aws_service_discovery_http_namespace.thanks.arn
+  service_connect_namespace_arn  = aws_service_discovery_http_namespace.main.arn
   service_connect_port_name      = "data-http"
   service_connect_discovery_name = "${aws_service_discovery_http_namespace.main.name}-dataapi"
   service_connect_port           = 5000
@@ -91,7 +91,7 @@ module "service_media" {
   # Use EC2 capacity provider
   capacity_provider_strategy = [
     {
-      capacity_provider = EC2
+      capacity_provider = aws_ecs_capacity_provider.ec2.name
       weight            = 1
       base              = 0
     }
@@ -120,7 +120,7 @@ module "service_frontend" {
 
   service_name        = "${var.PrefixCode}-frontend-service"
   cluster_name        = aws_ecs_cluster.main.name
-  task_definition_arn = task_frontend.task_definition_arn
+  task_definition_arn = module.task_frontend.task_definition_arn
   desired_count       = 2
   launch_type         = "FARGATE"
 
