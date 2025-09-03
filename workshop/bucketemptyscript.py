@@ -18,4 +18,4 @@ for bucket_name in BUCKETS:
         bucket.object_versions.delete()
         print(f"Deleted all objects from S3 bucket: {bucket_name}")
     except Exception as e:
-        print(f"Error deleting objects from S3 bucket {bucket_name}: {e}")
+        print(f"Error deleting objects from S3 bucket: {bucket_name}: {e}")
