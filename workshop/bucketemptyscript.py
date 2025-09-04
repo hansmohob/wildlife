@@ -26,14 +26,14 @@ config = response['DistributionConfig']
 etag = response['ETag']
 
 # Disable logging
-config['Logging']['Enabled'] = False.
+config['Logging']['Enabled'] = False
 
 # Update distribution
 client.update_distribution(
     Id='REPLACE_CLOUDFRONT_DISTRIBUTION_ID',
     DistributionConfig=config,
     IfMatch=etag
-).
+)
 
 # Empty workshop S3 buckets
 
