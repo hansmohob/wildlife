@@ -34,6 +34,12 @@ module "task_frontend" {
       readOnly      = false
     }
   ]
+  environment_variables = [
+    {
+      name  = "BANNER_COLOR"
+      value = "#E47911"
+    }
+  ]
 }
 
 # DataAPI Task Definition
@@ -82,7 +88,7 @@ module "task_media" {
 
   family                   = "${var.PrefixCode}-media-task"
   cpu                      = "512"
-  memory                   = "1024"
+  memory                   = "512"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = data.aws_iam_role.ecs_task_execution.arn
   task_role_arn            = data.aws_iam_role.ecs_task.arn
@@ -150,4 +156,4 @@ module "task_datadb" {
   #     readOnly      = false
   #   }
   # ]
-}
+  }
