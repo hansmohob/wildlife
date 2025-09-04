@@ -392,6 +392,7 @@ perl -i -pe "BEGIN{undef $/;}
     s/REPLACE_S3_BUCKET_GIT/${S3_BUCKET_GIT}/g;
     s/REPLACE_S3_BUCKET_LOGS/${S3_BUCKET_LOGS}/g;
     s/REPLACE_S3_BUCKET_WILDLIFE/${S3_BUCKET_WILDLIFE}/g;
+    s/REPLACE_CODE_SERVER_ALB/${CODE_SERVER_ALB}/g;
     s/REPLACE_CLOUDFRONT_DISTRIBUTION_ID/${CLOUDFRONT_DISTRIBUTION_ID}/g" \
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
