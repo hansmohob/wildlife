@@ -37,7 +37,7 @@ module "task_frontend" {
   environment_variables = [
     {
       name  = "BANNER_COLOR"
-      value = "#E47911"
+      value = "#623CE4"
     }
   ]
 }
