@@ -6,8 +6,12 @@ import boto3
 
 client = boto3.client('elbv2')
 
+# Get ALB ARN by name
+response = client.describe_load_balancers(Names=['REPLACE_CODE_SERVER_ALB'])
+alb_arn = response['LoadBalancers'][0]['LoadBalancerArn']
+
 client.modify_load_balancer_attributes(
-LoadBalancerArn='REPLACE_CODE_SERVER_ALB',
+LoadBalancerArn=alb_arn,
 Attributes=[
         {
         'Key': 'access_logs.s3.enabled',
