@@ -70,7 +70,8 @@ def wildlife_root():
 @app.route('/wildlife/')
 def index():
     logger.info("Serving index page")
-    return render_template('index.html')
+    banner_color = os.environ.get('BANNER_COLOR', '#CD5C5C')
+    return render_template('index.html', banner_color=banner_color)
 
 @app.route('/wildlife/health')
 def health_check():

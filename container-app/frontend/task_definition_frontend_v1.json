@@ -41,6 +41,10 @@
                 {
                     "name": "AWS_XRAY_DAEMON_ADDRESS",
                     "value": "localhost:2000"
+                },
+                {
+                "name": "BANNER_COLOR",
+                "value": "#CD5C5C"
                 }
             ],
             "logConfiguration": {
