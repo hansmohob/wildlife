@@ -1102,6 +1102,10 @@ cleanup_cluster() {
     echo "Waiting 30 seconds for attachments cleanup..."
     sleep 30
 
+    # Delete Service Connect namespace
+    namespace=$(aws ecs describe-clusters --clusters REPLACE_PREFIX_CODE-ecs --query 'clusters[0].serviceConnectDefaults' --output text)
+    aws servicediscovery delete-namespace --id $namespace
+
     echo "Deleting cluster..."
     aws ecs delete-cluster --cluster REPLACE_PREFIX_CODE-ecs --no-cli-pager
     
