@@ -2,7 +2,7 @@
 
 import boto3
 
-# Disable logging for Code Server ALB
+## Disable logging for Code Server ALB
 
 client = boto3.client('elbv2')
 
@@ -20,7 +20,7 @@ Attributes=[
     ]
 )
 
-# Disable logging for Code Server CloudFront Distribution
+## Disable logging for Code Server CloudFront Distribution
 
 client = boto3.client('cloudfront')
 
@@ -39,7 +39,7 @@ client.update_distribution(
     IfMatch=etag
 )
 
-# Empty workshop S3 buckets
+## Empty workshop S3 buckets
 
 BUCKETS = [
     'REPLACE_S3_BUCKET_ARTIFACT',
