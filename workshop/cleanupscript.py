@@ -59,6 +59,8 @@ for bucket_name in BUCKETS:
     except Exception as e:
         print(f"Error deleting objects from S3 bucket: {bucket_name}: {e}")
 
+
+# Disable container insights for ECS cluster
 ecs = boto3.client('ecs')
 
 ecs.update_cluster(
