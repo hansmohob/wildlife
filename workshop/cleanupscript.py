@@ -58,3 +58,29 @@ for bucket_name in BUCKETS:
         print(f"Deleted all objects from S3 bucket: {bucket_name}")
     except Exception as e:
         print(f"Error deleting objects from S3 bucket: {bucket_name}: {e}")
+
+# Delete workshop CloudWatch log groups
+log_groups = [
+    '/aws/codebuild/REPLACE_PREFIX_CODE-codebuildproject-terraform-build',
+    '/aws/codepipeline/REPLACE_PREFIX_CODE-pipeline',
+    '/aws/ec2/REPLACE_PREFIX_CODE-codeserver',
+    '/aws/ecs/REPLACE_PREFIX_CODE-alerts',
+    '/aws/ecs/xray-daemon',
+    '/aws/ecs/containerinsights/REPLACE_PREFIX_CODE-ecs/performance',
+    '/aws/ecs/service-connect/REPLACE_PREFIX_CODE-app',
+    '/aws/ecs/REPLACE_PREFIX_CODE-dataapi',
+    '/aws/ecs/REPLACE_PREFIX_CODE-datadb',
+    '/aws/ecs/REPLACE_PREFIX_CODE-frontend',
+    '/aws/ecs/REPLACE_PREFIX_CODE-media',
+    '/aws/lambda/REPLACE_PREFIX_CODE-lambda-gps',
+    '/aws/vpc/REPLACE_PREFIX_CODE-flowlogs'
+]
+
+client = boto3.client('logs')
+
+for log_group in log_groups:
+    try:
+        client.delete_log_group(logGroupName=log_group)
+        print(f"Deleted: {log_group}")
+    except:
+        print(f"Failed: {log_group}")
