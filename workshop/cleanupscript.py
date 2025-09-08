@@ -59,6 +59,18 @@ for bucket_name in BUCKETS:
     except Exception as e:
         print(f"Error deleting objects from S3 bucket: {bucket_name}: {e}")
 
+ecs = boto3.client('ecs')
+
+ecs.update_cluster(
+    cluster='REPLACE_PREFIX_CODE-ecs',
+    settings=[
+        {
+            'name': 'containerInsights',
+            'value': 'disabled'
+        }
+    ]
+)
+
 # Delete workshop CloudWatch log groups
 log_groups = [
     '/aws/codebuild/REPLACE_PREFIX_CODE-codebuildproject-terraform-build',
