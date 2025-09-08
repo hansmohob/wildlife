@@ -397,7 +397,7 @@ perl -i -pe "BEGIN{undef $/;}
     $(find /home/ec2-user/workspace/my-workspace \
         -name "task_definition_*.json" -o \
         -name "workshop-helper.sh" -o \
-        -name "bucketemptyscript.py" -o \
+        -name "cleanupscript.py" -o \
         -name "versions.tf" -o \
         -name "terraform.tfvars")
 
@@ -431,8 +431,8 @@ echo "----------------------------------------"
 # Make scripts executable and available globally
 chmod +x /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh
 ln -sf /home/ec2-user/workspace/my-workspace/workshop/workshop-helper.sh /usr/local/bin/workshop-helper
-chmod +x /home/ec2-user/workspace/my-workspace/workshop/bucketemptyscript.py
-ln -sf /home/ec2-user/workspace/my-workspace/workshop/bucketemptyscript.py /usr/local/bin/bucketemptyscript
+chmod +x /home/ec2-user/workspace/my-workspace/workshop/cleanupscript.py
+ln -sf /home/ec2-user/workspace/my-workspace/workshop/cleanupscript.py /usr/local/bin/cleanupscript
 
 # Check if any steps failed
 if grep -q "\[FAILED\]" $STATUS_FILE; then
