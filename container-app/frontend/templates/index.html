@@ -14,10 +14,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.5.1/ol.css" 
           integrity="sha384-7W8eqIZyRVVmTfY4EjNeg2AAJSJqbv4Nc3Az94jVP6ZggjoltxGAKIqFpJxNUhcM" crossorigin="anonymous">
     <style>
+        :root {
+            --primary-color: {{ primary_color }};
+            --primary-hover: {{ primary_hover }};
+            --primary-light: {{ primary_light }};
+            --primary-shadow: {{ primary_shadow }};
+        }
         body {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-color) 15%, #ffffff 40%);
         }
         .footer {
             margin-top: auto;
@@ -37,7 +44,7 @@
             color: #000000;
         }
         .ol-layer:first-child > canvas {
-            filter: grayscale(100%);
+            filter: none;
         }
         #gpsTable tbody tr {
             height: 32px !important;
@@ -45,8 +52,26 @@
         #gpsTable tbody td {
             vertical-align: middle;
         }
+        #gpsTable thead {
+            display: table-header-group !important;
+        }
+        #gpsTable th {
+            white-space: nowrap;
+            font-weight: normal;
+        }
+        .table th {
+            font-weight: normal;
+        }
+        .card-header {
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
         .navbar {
-            background-color: #CD5C5C;
+            background-color: var(--primary-color);
+        }
+        .card {
+            border: none !important;
         }
         .ol-popup {
             position: absolute;
@@ -83,19 +108,67 @@
         .popup-content h4 {
             margin: 0 0 10px 0;
             font-size: 18px;
-            color: #CD5C5C;
+            color: var(--primary-color);
         }
         .popup-content p {
             margin: 0 0 5px 0;
+        }
+        .btn-success {
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px var(--primary-light);
+        }
+        .btn-success:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--primary-shadow);
+        }
+        .btn-dark {
+            background: #495057;
+            border: none;
+            color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(73, 80, 87, 0.2);
+        }
+        .btn-dark:hover {
+            background: #343a40;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(73, 80, 87, 0.3);
+        }
+        .card {
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+        }
+        .card:nth-child(2):hover, .card:nth-child(4):hover {
+            transform: none;
+        }
+        .table tbody td:active {
+            background-color: var(--primary-light) !important;
+        }
+        .table tbody tr:active {
+            background-color: var(--primary-light) !important;
+        }
+        .table tbody tr.selected {
+            background-color: var(--primary-light) !important;
+        }
+        .table tbody td::selection {
+            background-color: var(--primary-light) !important;
+        }
+        .table tbody tr::selection {
+            background-color: var(--primary-light) !important;
         }
     </style>
 </head>
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-banner" style="background-color: {{ banner_color }};">
+    <nav class="navbar navbar-banner">
         <div class="container">
             <div class="d-flex justify-content-between align-items-center w-100">
-                <span class="navbar-brand mb-0 h1 text-white">Wildlife Monitoring System (Containerized)</span>
+                <span class="navbar-brand mb-0 h1 text-white fw-bold">Wildlife Monitoring System</span>
                 <img src="/wildlife/static/logo.png" alt="Logo" height="30" class="banner-logo">
             </div>
         </div>
@@ -108,7 +181,7 @@
             <div class="col-md-4">
                 <!-- Sighting Form Card -->
                 <div class="card mb-3">
-                    <div class="card-header bg-dark text-white">Report Wildlife Sighting</div>
+                    <div class="card-header" style="background: white !important; color: var(--primary-color) !important; border-bottom: 3px solid var(--primary-color) !important;">Report Wildlife Sighting</div>
                     <div class="card-body">
                         <div id="alertMessage" class="alert" style="display: none;" role="alert"></div>
                         <form id="sightingForm" enctype="multipart/form-data">
@@ -156,22 +229,20 @@
 
                 <!-- GPS Alerts Card -->
                 <div class="card">
-                    <div class="card-header bg-dark text-white">GPS Tracking Alerts</div>
+                    <div class="card-header" style="background: white !important; color: var(--primary-color) !important; border-bottom: 3px solid var(--primary-color) !important;">GPS Tracking Alerts</div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table id="gpsTable" class="table table-striped table-sm align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Animal ID</th>
-                                        <th>Species</th>
-                                        <th>Battery</th>
-                                        <th>Status</th>
-                                        <th>Timestamp</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="gpsList"></tbody>
-                            </table>
-                        </div>
+                        <table id="gpsTable" class="table table-striped table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Animal ID</th>
+                                    <th>Species</th>
+                                    <th>Battery</th>
+                                    <th>Status</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gpsList"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -180,14 +251,14 @@
             <div class="col-md-8">
                 <!-- Map Card -->
                 <div class="card mb-3">
-                    <div class="card-header bg-dark text-white">Sighting Locations</div>
+                    <div class="card-header" style="background: white !important; color: var(--primary-color) !important; border-bottom: 3px solid var(--primary-color) !important;">Sighting Locations</div>
                     <div class="card-body">
                         <div id="map"></div>
                     </div>
                 </div>
                 <!-- Sightings Table Card -->
                 <div class="card">
-                    <div class="card-header bg-dark text-white">Recent Sightings</div>
+                    <div class="card-header" style="background: white !important; color: var(--primary-color) !important; border-bottom: 3px solid var(--primary-color) !important;">Recent Sightings</div>
                     <div class="card-body">
                         <table id="sightingsTable" class="table table-striped">
                             <thead>
@@ -208,9 +279,9 @@
     </div>
 
     <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-dark text-light">
-        <div class="container text-center">
-            Built with containers using Amazon ECS | <a href="https://aws.amazon.com/q/developer/" target="_blank" class="text-light">Amazon Q for Developer</a>
+    <footer class="footer mt-auto py-3 text-light" style="background: none; border-top: 1px solid #dee2e6;">
+        <div class="container text-center" style="color: #6c757d;">
+            Built with Containers using <a href="https://aws.amazon.com/q/developer/" target="_blank" style="color: #6c757d;">Amazon Q for Developer</a>
         </div>
     </footer>
 
@@ -284,7 +355,10 @@
                 target: 'map',
                 layers: [
                     new ol.layer.Tile({
-                        source: new ol.source.OSM()
+                        source: new ol.source.XYZ({
+                            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                            attributions: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                        })
                     }),
                     vectorLayer,
                     selectionLayer
@@ -368,7 +442,7 @@
                         new ol.style.Style({
                             image: new ol.style.Circle({
                                 radius: 6,
-                                fill: new ol.style.Fill({color: '#CD5C5C'}),
+                                fill: new ol.style.Fill({color: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim()}),
                                 stroke: new ol.style.Stroke({color: 'white', width: 2})
                             })
                         });
@@ -590,7 +664,8 @@
                 });
 
                 if (response.ok) {
-                    alertDiv.style.backgroundColor = '#CD5C5C';
+                    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+                    alertDiv.style.backgroundColor = primaryColor;
                     alertDiv.style.color = 'white';
                     alertDiv.className = 'alert';
                     alertDiv.textContent = 'Sighting reported successfully!';
@@ -601,7 +676,9 @@
                     throw new Error('Failed to submit sighting');
                 }
             } catch (error) {
-                alertDiv.className = 'alert alert-danger';
+                alertDiv.style.backgroundColor = '#dc3545';
+                alertDiv.style.color = 'white';
+                alertDiv.className = 'alert';
                 alertDiv.textContent = 'Failed to submit sighting';
             }
             

@@ -70,8 +70,15 @@ def wildlife_root():
 @app.route('/wildlife/')
 def index():
     logger.info("Serving index page")
-    banner_color = os.environ.get('BANNER_COLOR', '#CD5C5C')
-    return render_template('index.html', banner_color=banner_color)
+    primary_color = os.environ.get('PRIMARY_COLOR', '#D2691E')
+    primary_hover = os.environ.get('PRIMARY_HOVER', '#B8541A')
+    primary_light = os.environ.get('PRIMARY_LIGHT', 'rgba(210, 105, 30, 0.2)')
+    primary_shadow = os.environ.get('PRIMARY_SHADOW', 'rgba(210, 105, 30, 0.3)')
+    return render_template('index.html', 
+                         primary_color=primary_color,
+                         primary_hover=primary_hover,
+                         primary_light=primary_light,
+                         primary_shadow=primary_shadow)
 
 @app.route('/wildlife/health')
 def health_check():
