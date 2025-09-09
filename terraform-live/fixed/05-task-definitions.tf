@@ -36,8 +36,20 @@ module "task_frontend" {
   ]
   environment_variables = [
     {
-      name  = "BANNER_COLOR"
-      value = "#623CE4"
+      name  = "PRIMARY_COLOR"
+      value = "#532DB2"
+    },
+    {
+      name  = "PRIMARY_HOVER"
+      value = "#4521A3"
+    },
+    {
+      name  = "PRIMARY_LIGHT"
+      value = "rgba(83, 45, 178, 0.2)"
+    },
+    {
+      name  = "PRIMARY_SHADOW"
+      value = "rgba(83, 45, 178, 0.3)"
     }
   ]
 }
