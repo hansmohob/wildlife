@@ -2,7 +2,7 @@
 
 # Application Auto Scaling Target for Frontend Service
 resource "aws_appautoscaling_target" "frontend" {
-  max_capacity       = 5
+  max_capacity       = 2
   min_capacity       = 2
   resource_id        = "service/${aws_ecs_cluster.main.name}/${module.service_frontend.service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
@@ -24,10 +24,10 @@ resource "aws_appautoscaling_policy" "frontend_cpu" {
   service_namespace  = aws_appautoscaling_target.frontend.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value = 70.0
+    target_value = 100.0
 
     predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
 
     scale_out_cooldown = 300

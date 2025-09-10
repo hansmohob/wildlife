@@ -1,11 +1,5 @@
 # EFS Storage for Application
 
-# Attach EFS policy to ECS task role
-resource "aws_iam_role_policy_attachment" "ecs_task_efs_policy" {
-  role       = data.aws_iam_role.ecs_task.name
-  policy_arn = data.aws_iam_policy.application_data_policy.arn
-}
-
 # EFS File System for MongoDB persistent storage
 resource "aws_efs_file_system" "mongodb" {
   creation_token = "${var.PrefixCode}-mongodb"

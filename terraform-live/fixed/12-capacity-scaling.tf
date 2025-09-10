@@ -4,7 +4,7 @@
 resource "aws_appautoscaling_target" "media" {
   max_capacity       = 6
   min_capacity       = 2
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${module.service_media.service_name}"
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${module.service_alerts.service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 
@@ -24,7 +24,7 @@ resource "aws_appautoscaling_policy" "media_cpu" {
   service_namespace  = aws_appautoscaling_target.media.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value = 30.0 # Lower than frontend (70%) to trigger capacity scaling first
+    target_value = 30.0
 
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"

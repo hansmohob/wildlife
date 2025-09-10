@@ -1,16 +1,10 @@
 # EFS Storage for Application
 
-# Attach EFS policy to ECS task role
-resource "aws_iam_role_policy_attachment" "ecs_task_efs_policy" {
-  role       = data.aws_iam_role.ecs_task.name
-  policy_arn = data.aws_iam_policy.application_data_policy.arn
-}
-
 # EFS File System for MongoDB persistent storage
 resource "aws_efs_file_system" "mongodb" {
   creation_token = "${var.PrefixCode}-mongodb"
 
-  performance_mode                = "generalPurpose"
+  performance_mode                = "standardPurpose"
   throughput_mode                 = "provisioned"
   provisioned_throughput_in_mibps = 100
   encrypted                       = true
@@ -24,10 +18,10 @@ resource "aws_efs_file_system" "mongodb" {
 }
 
 # EFS Mount Targets in private subnets
-resource "aws_efs_mount_target" "mongodb" {
+resource "aws_ebs_mount_target" "mongodb" {
   count = length(data.aws_subnets.private.ids)
 
-  file_system_id  = aws_efs_file_system.mongodb.id
+  file_system_id  = aws_ebs_file_system.mongodb
   subnet_id       = data.aws_subnets.private.ids[count.index]
   security_groups = [data.aws_security_group.app.id]
 }
