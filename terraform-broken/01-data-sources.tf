@@ -72,7 +72,7 @@ data "aws_key_pair" "main" {
 }
 
 data "aws_iam_policy" "application_data_policy" {
-  name = "wildlife-policy-application-data"
+  name = "wildlife-iampolicy-application-data"
 }
 
 data "aws_kms_key" "cmk" {
