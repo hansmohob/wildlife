@@ -611,7 +611,7 @@ fix_image_upload() {
     # AWS CLI COMMANDS: Attach S3 policy to ECS task role and force service deployment
     aws iam attach-role-policy \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
-        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data
+        --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:iampolicy/REPLACE_PREFIX_CODE-policy-application-data
 
     echo "Forcing new deployment for media service..."
     aws ecs update-service \
@@ -640,12 +640,12 @@ create_efs_storage() {
     # AWS CLI COMMANDS: Create EFS file system with mount targets for persistent storage
     if ! aws iam list-attached-role-policies \
         --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
-        --query 'AttachedPolicies[?PolicyArn==`arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data`]' \
+        --query 'AttachedPolicies[?PolicyArn==`arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:iampolicy/REPLACE_PREFIX_CODE-policy-application-data`]' \
         --output text | grep -q .; then
         
         aws iam attach-role-policy \
             --role-name REPLACE_PREFIX_CODE-iamrole-ecs-task \
-            --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:policy/REPLACE_PREFIX_CODE-policy-application-data \
+            --policy-arn arn:aws:iam::REPLACE_AWS_ACCOUNT_ID:iampolicy/REPLACE_PREFIX_CODE-policy-application-data \
             --no-cli-pager
         echo "EFS policy attached successfully"
     else
